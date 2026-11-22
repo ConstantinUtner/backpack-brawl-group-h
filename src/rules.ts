@@ -16,7 +16,8 @@ export const EFFECT_HELP: Record<keyof ItemEffects, string> = {
   block: "Block: absorbs incoming damage until used up. Unused block stays for the rest of the battle.",
   /* REQUIREMENT 3: needed to add poison and heal for 'hovering-over' effect at items*/
   poison: "Poison: poisons the enemy to take damage over time. It is not absorbed by block. Can be stacked by multiple use!",
-  heal: "Heal: Heals the user immediately after use for the amount mentioned."
+  heal: "Heal: Heals the user immediately after use for the amount mentioned.",
+  burn: "Burn: Burns the enemy over time. It is absorbed by block and can be stacked by multiple use."
 };
 
 export const COOLDOWN_HELP = `Cooldown: the item fires every time this much battle time has passed (1 tick = ${TICK_SECONDS} s).`;
@@ -27,6 +28,7 @@ export const STATUS_HELP = {
   block: EFFECT_HELP.block,
   /* REQUIREMENT 3: Needed to add the poison to the STATUS_HELP for explaining the poison state at battle time*/
   poison: EFFECT_HELP.poison,
+  burn: EFFECT_HELP.burn,
   timer: `After ${BATTLE_SECONDS} s the fighter with the higher share of HP wins; a tie counts as your loss.`,
 };
 
@@ -67,7 +69,8 @@ export const RULES: RuleSection[] = [
       `Some Battle Items have special Effects like Poison or Heal.`,
       `The effects are activated during battle after a certain cooldown time.`,
       `Heal and poison effect affects the HP oder the user or enemy directly, ignoring the block.`,
-      `The (🧪)poison effect stacks with every activation, e.g. from 1 poison, next tick after cooldown to 1+1 poison and so on.`
+      `The (🧪)poison effect stacks with every activation.`,
+      `The (🔥)burn effect stacks with every activation, but does not ignore block.`
     ],
   },
 ];
