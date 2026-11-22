@@ -147,7 +147,7 @@ function resolveItem(
   if (heal) {
     //No one-time use, does not stack but heals up until the maxHP
     self.hp = Math.min(self.fighter.maxHp, self.hp + heal);
-    emit({ ...base, target: enemySide, kind: "heal", amount: heal, message: `${item.name} heals ${self.fighter.name} for ${heal} HP` });  
+    emit({ ...base, target: side, kind: "heal", amount: heal, message: `${item.name} heals ${self.fighter.name} for ${heal} HP` });  
   }
 }
 
