@@ -69,7 +69,7 @@ interface HallOfFameEntry {
 
 ### Heal
 
-- Ein Item heilt den eigenen Kämpfer **sofort** um seinen `heal`-Wert.
+- Ein Item heilt den eigenen Kämpfer um seinen `heal`-Wert je nach Ticks. Stackt nicht wie Poison
 - `hp = Math.min(maxHp, hp + heal)`; Block ändert sich nicht.
 
 
