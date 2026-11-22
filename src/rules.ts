@@ -61,4 +61,13 @@ export const RULES: RuleSection[] = [
       `Knock the enemy out to win. ${STATUS_HELP.timer} If both fall at once, you lose.`,
     ],
   },
+  {
+    title: "🧪 Item Effects",
+    rules: [
+      `Some Battle Items have special Effects like Poison or Heal.`,
+      `The effects are activated during battle after a certain cooldown time.`,
+      `Heal and poison effect affects the HP oder the user or enemy directly, ignoring the block.`,
+      `The (🧪)poison effect stacks with every activation, e.g. from 1 poison, next tick after cooldown to 1+1 poison and so on.`
+    ],
+  },
 ];
