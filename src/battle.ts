@@ -30,6 +30,8 @@ interface FighterState {
   fighter: Fighter;
   hp: number;
   block: number;
+  /* REQUIREMENT 3: FighterState needs poison as interface to use for snapshot and initialization down below */
+  poison: number;
   /** Ticks each item has charged towards its cooldown. */
   charge: number[];
 }
@@ -40,6 +42,7 @@ const snapshot = (s: FighterState): FighterSnapshot => ({
   hp: Math.max(0, s.hp),
   maxHp: s.fighter.maxHp,
   block: s.block,
+  poison: s.poison
 });
 
 const isDown = (s: FighterState) => s.hp <= 0;
@@ -96,7 +99,7 @@ export function simulateBattle(player: Fighter, opponent: Fighter): BattleResult
 }
 
 function initState(fighter: Fighter): FighterState {
-  return { fighter, hp: fighter.maxHp, block: 0, charge: fighter.items.map(() => 0) };
+  return { fighter, hp: fighter.maxHp, block: 0, poison: 0, charge: fighter.items.map(() => 0) };
 }
 
 /** Advances one tick of cooldowns and returns the items that fire this tick. */

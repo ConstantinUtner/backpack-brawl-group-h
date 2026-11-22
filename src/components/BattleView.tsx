@@ -123,7 +123,8 @@ interface FighterPanelProps {
 }
 
 function FighterPanel({ side, icon, fighter, snapshot }: FighterPanelProps) {
-  const { hp, maxHp, block } = snapshot;
+  /* REQUIREMENT 3: The FighterPanel snapshot, which has been updated elsewhere needs the value to be shown on the Bars during battle */
+  const { hp, maxHp, block, poison } = snapshot;
   const knockedOut = hp <= 0;
 
   return (
@@ -140,6 +141,7 @@ function FighterPanel({ side, icon, fighter, snapshot }: FighterPanelProps) {
 
       <Bar label="HP" value={hp} max={maxHp} text={`${hp} / ${maxHp}`} colour="bg-life" help={STATUS_HELP.hp} />
       <Bar label="Block" value={block} max={maxHp} text={`🛡️ ${block}`} colour="bg-block" help={STATUS_HELP.block} />
+      <Bar label="Poison" value={poison} max={maxHp} text={`🧪 ${poison}`} colour="bg-poison" help={STATUS_HELP.poison} />
 
       <ul className="flex flex-wrap gap-1" aria-label="Items">
         {fighter.items.map((item, index) => (

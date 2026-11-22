@@ -1,6 +1,9 @@
 export interface ItemEffects {
   damage?: number;
   block?: number;
+  /* REQUIREMENT 3: ItemEffects is the interface to work for item connection and tooltips */
+  poison?: number;
+  heal?: number;
 }
 
 export interface ItemDef {
@@ -55,6 +58,7 @@ export interface FighterSnapshot {
   hp: number;
   maxHp: number;
   block: number;
+  poison: number;
 }
 
 export type BattleEventKind = "damage" | "block";

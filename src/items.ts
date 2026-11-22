@@ -20,6 +20,9 @@ export function getItem(id: string): ItemDef {
 const EFFECT_LABELS: [keyof ItemEffects, (n: number) => string][] = [
   ["damage", (n) => `⚔️ ${n} dmg`],
   ["block", (n) => `🛡️ +${n} block`],
+  /* REQUIREMENT 3: Effects need to have labels to be shown on the UI */
+  ["poison", (n) => `🧪+${n} damage per stack`],
+  ["heal", (n) => `❤️+${n} heal`]
 ];
 
 /** Short labels for an item's effects, e.g. `[{ effect: "damage", label: "⚔️ 2 dmg" }, …]`. */
