@@ -14,6 +14,9 @@ const BATTLE_SECONDS = MAX_TICKS * TICK_SECONDS;
 export const EFFECT_HELP: Record<keyof ItemEffects, string> = {
   damage: "Damage: hits the enemy. Block absorbs it first, the rest is lost from HP.",
   block: "Block: absorbs incoming damage until used up. Unused block stays for the rest of the battle.",
+  /* REQUIREMENT 3: needed to add poison and heal for 'hovering-over' effect at items*/
+  poison: "Poison: poisons the enemy to take damage over time. It is not absorbed by block. Can be stacked by multiple use!",
+  heal: "Heal: Heals the user immediately after use for the amount mentioned."
 };
 
 export const COOLDOWN_HELP = `Cooldown: the item fires every time this much battle time has passed (1 tick = ${TICK_SECONDS} s).`;
@@ -22,6 +25,8 @@ export const COOLDOWN_HELP = `Cooldown: the item fires every time this much batt
 export const STATUS_HELP = {
   hp: "HP: reaching 0 is a knockout.",
   block: EFFECT_HELP.block,
+  /* REQUIREMENT 3: Needed to add the poison to the STATUS_HELP for explaining the poison state at battle time*/
+  poison: EFFECT_HELP.poison,
   timer: `After ${BATTLE_SECONDS} s the fighter with the higher share of HP wins; a tie counts as your loss.`,
 };
 
@@ -54,6 +59,15 @@ export const RULES: RuleSection[] = [
       `Battles run on their own. Your hero has ${HERO_BASE_HP} HP; every item fires whenever its cooldown is up.`,
       `Damage hits block first; only the rest is lost from HP. Unused block stays for the rest of the battle.`,
       `Knock the enemy out to win. ${STATUS_HELP.timer} If both fall at once, you lose.`,
+    ],
+  },
+  {
+    title: "🧪 Item Effects",
+    rules: [
+      `Some Battle Items have special Effects like Poison or Heal.`,
+      `The effects are activated during battle after a certain cooldown time.`,
+      `Heal and poison effect affects the HP oder the user or enemy directly, ignoring the block.`,
+      `The (🧪)poison effect stacks with every activation, e.g. from 1 poison, next tick after cooldown to 1+1 poison and so on.`
     ],
   },
 ];

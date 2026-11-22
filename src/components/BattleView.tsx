@@ -94,6 +94,8 @@ const LOG_ROW = "grid grid-cols-[1fr_auto_1fr] items-start gap-2";
 /** Text colour per event: damage red, everything else neutral. */
 const EVENT_COLOUR: Partial<Record<BattleEventKind, string>> = {
   damage: "text-life",
+  poison: "text-purple-500",
+  heal: "text-green-400"
 };
 
 function LogLine({ event }: { event: BattleEvent }) {
@@ -123,8 +125,14 @@ interface FighterPanelProps {
 }
 
 function FighterPanel({ side, icon, fighter, snapshot }: FighterPanelProps) {
-  const { hp, maxHp, block } = snapshot;
+  /* REQUIREMENT 3: The FighterPanel snapshot, which has been updated elsewhere needs the value to be shown on the Bars during battle */
+  const { hp, maxHp, block, poison } = snapshot;
   const knockedOut = hp <= 0;
+  /* REQUIREMENT 3: Adding calculation of how much heal is there from items */
+  const healAmount = fighter.items.reduce(
+    (total, item) => total + (item.effects.heal ?? 0),
+    0
+  );
 
   return (
     <article
@@ -140,6 +148,7 @@ function FighterPanel({ side, icon, fighter, snapshot }: FighterPanelProps) {
 
       <Bar label="HP" value={hp} max={maxHp} text={`${hp} / ${maxHp}`} colour="bg-life" help={STATUS_HELP.hp} />
       <Bar label="Block" value={block} max={maxHp} text={`🛡️ ${block}`} colour="bg-block" help={STATUS_HELP.block} />
+      <Bar label="Poison" value={poison} max={maxHp} text={`🧪 ${poison}`} colour="bg-poison" help={STATUS_HELP.poison} />
 
       <ul className="flex flex-wrap gap-1" aria-label="Items">
         {fighter.items.map((item, index) => (
@@ -148,6 +157,11 @@ function FighterPanel({ side, icon, fighter, snapshot }: FighterPanelProps) {
           </li>
         ))}
       </ul>
+
+       {/* REQUIREMENT 3: Adding the current heal amount to the panel */}
+       <span className="shrink-0 text-sm text-muted">
+          Current heal: {healAmount} HP
+       </span>
     </article>
   );
 }

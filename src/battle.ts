@@ -30,6 +30,8 @@ interface FighterState {
   fighter: Fighter;
   hp: number;
   block: number;
+  /* REQUIREMENT 3: FighterState needs poison as interface to use for snapshot and initialization down below */
+  poison: number;
   /** Ticks each item has charged towards its cooldown. */
   charge: number[];
 }
@@ -40,6 +42,7 @@ const snapshot = (s: FighterState): FighterSnapshot => ({
   hp: Math.max(0, s.hp),
   maxHp: s.fighter.maxHp,
   block: s.block,
+  poison: s.poison
 });
 
 const isDown = (s: FighterState) => s.hp <= 0;
@@ -96,7 +99,7 @@ export function simulateBattle(player: Fighter, opponent: Fighter): BattleResult
 }
 
 function initState(fighter: Fighter): FighterState {
-  return { fighter, hp: fighter.maxHp, block: 0, charge: fighter.items.map(() => 0) };
+  return { fighter, hp: fighter.maxHp, block: 0, poison: 0, charge: fighter.items.map(() => 0) };
 }
 
 /** Advances one tick of cooldowns and returns the items that fire this tick. */
@@ -119,7 +122,8 @@ function resolveItem(
   side: Side,
   emit: (event: Omit<BattleEvent, "tick">) => void,
 ) {
-  const { damage, block } = item.effects;
+  /* REQUIREMENT 3: Added poison for effects, implementing what happens */
+  const { damage, block, poison, heal } = item.effects;
   const base = { source: side, itemId: item.itemId };
   const enemySide = other(side);
 
@@ -133,6 +137,17 @@ function resolveItem(
   if (block) {
     self.block += block;
     emit({ ...base, target: side, kind: "block", amount: block, message: `${item.name} grants ${self.fighter.name} ${block} block` });
+  }
+  if (poison) {
+    //Works with ticks, but stacks upon the current value
+    enemy.poison += poison;
+    enemy.hp -= enemy.poison;
+    emit({ ...base, target: enemySide, kind: "poison", amount: enemy.poison, message: `${item.name} hits ${enemy.fighter.name} for ${enemy.poison} poison` });
+  }
+  if (heal) {
+    //No one-time use, does not stack but heals up until the maxHP
+    self.hp = Math.min(self.fighter.maxHp, self.hp + heal);
+    emit({ ...base, target: side, kind: "heal", amount: heal, message: `${item.name} heals ${self.fighter.name} for ${heal} HP` });  
   }
 }
 

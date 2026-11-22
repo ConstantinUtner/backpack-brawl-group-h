@@ -69,7 +69,7 @@ interface HallOfFameEntry {
 
 ### Heal
 
-- Ein Item heilt den eigenen Kämpfer **sofort** um seinen `heal`-Wert.
+- Ein Item heilt den eigenen Kämpfer um seinen `heal`-Wert je nach Ticks. Stackt nicht wie Poison
 - `hp = Math.min(maxHp, hp + heal)`; Block ändert sich nicht.
 
 
@@ -86,6 +86,20 @@ interface HallOfFameEntry {
 
 Die neuen Items erhalten Preise von 3, 5 und 7 Gold je Effektgruppe (aufsteigend nach Stärke). Sie werden zum normalen Itemkatalog hinzugefügt und können dadurch auch im Shop erscheinen.
 
+### Diary Information:
+  #### Important decisions:
+    - Used automatic healing based on the items cooldown up above - changed from one-time use to real cooldown usage
+    - Made poison purple and heal green in the Combat Log and visual representation of the FighterPanel
+    - The HP is currently shown as a "current Heal"-text with the sum of all heal from the items inside the backpack
+  
+  ### AI usage:
+    - AI was helpful in bugfix (the poison did not stack correctly)
+    - Used AI for information about Tailwind CSS for the theme colours and classes (e.g. heal amount of the current heal)
+    - AI drafted a VITEST for poison stacking, block bypass, healing limits and the targets - which helped me figure out a bug in the healing process beforehand (healing the opponent instead of myself)
+
+  ### Reflections:
+    - The combat logs are not always what is really happening. Because they are treated separately I needed to make sure that the correct thing is happening with explorative testing
+    - A lot of explorative testing was needed to figure out if the items are doing what they are supposed to do because of the randomness. Testing helped immensely instead of that - visual things are still important to observe manually.
 
 ## 6. B4 – Item Sets & Burn
 
