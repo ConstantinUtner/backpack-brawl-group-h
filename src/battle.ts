@@ -138,6 +138,7 @@ function resolveItem(
     emit({ ...base, target: enemySide, kind: "damage", amount: damage, message: `${item.name} hits ${enemy.fighter.name} for ${damage}${note}` });
   }
   if (block) {
+    /**TODO: REQUIREMENT 4: Maybe ask here if the activeSets includes defense and add +1 block? */
     self.block += block;
     emit({ ...base, target: side, kind: "block", amount: block, message: `${item.name} grants ${self.fighter.name} ${block} block` });
   }
@@ -152,7 +153,10 @@ function resolveItem(
     self.hp = Math.min(self.fighter.maxHp, self.hp + heal);
     emit({ ...base, target: side, kind: "heal", amount: heal, message: `${item.name} heals ${self.fighter.name} for ${heal} HP` });  
   }
+  /** TODO: REQUIREMENT 4: Burn damage and how to handle it */
 }
+
+/** TODO: REQUIREMENT 4: Maybe it is better to have a poisonDamage() and burnDamage() method to act on periodic times? */
 
 function timeoutWinner(player: FighterState, opponent: FighterState): Side {
   const ratio = (s: FighterState) => s.hp / s.fighter.maxHp;

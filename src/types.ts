@@ -8,7 +8,7 @@ export interface ItemEffects {
 }
 
 /** REQUIREMENT 4: New ItemSets defined as type for the interface ItemDef */
-export type ItemSetId = "fire" | "defense"
+export type ItemSetId = "fire" | "defense";
 
 export interface ItemDef {
   id: string;

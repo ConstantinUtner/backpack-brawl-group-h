@@ -126,7 +126,7 @@ interface FighterPanelProps {
 
 function FighterPanel({ side, icon, fighter, snapshot }: FighterPanelProps) {
   /* REQUIREMENT 3: The FighterPanel snapshot, which has been updated elsewhere needs the value to be shown on the Bars during battle */
-  const { hp, maxHp, block, poison } = snapshot;
+  const { hp, maxHp, block, poison, burn } = snapshot;
   const knockedOut = hp <= 0;
   /* REQUIREMENT 3: Adding calculation of how much heal is there from items */
   const healAmount = fighter.items.reduce(
@@ -149,6 +149,8 @@ function FighterPanel({ side, icon, fighter, snapshot }: FighterPanelProps) {
       <Bar label="HP" value={hp} max={maxHp} text={`${hp} / ${maxHp}`} colour="bg-life" help={STATUS_HELP.hp} />
       <Bar label="Block" value={block} max={maxHp} text={`🛡️ ${block}`} colour="bg-block" help={STATUS_HELP.block} />
       <Bar label="Poison" value={poison} max={maxHp} text={`🧪 ${poison}`} colour="bg-poison" help={STATUS_HELP.poison} />
+      {/** REQUIREMENT 4: Adding a new bar for burn damage after poison in color red? */}
+      <Bar label="Burn" value={burn} max={maxHp} text={`🔥 ${burn}`} colour="bg-burn" help={STATUS_HELP.burn} />
 
       <ul className="flex flex-wrap gap-1" aria-label="Items">
         {fighter.items.map((item, index) => (
