@@ -122,7 +122,8 @@ function resolveItem(
   side: Side,
   emit: (event: Omit<BattleEvent, "tick">) => void,
 ) {
-  const { damage, block } = item.effects;
+  /* REQUIREMENT 3: Added poison for effects, implementing what happens */
+  const { damage, block, poison, heal } = item.effects;
   const base = { source: side, itemId: item.itemId };
   const enemySide = other(side);
 
@@ -136,6 +137,17 @@ function resolveItem(
   if (block) {
     self.block += block;
     emit({ ...base, target: side, kind: "block", amount: block, message: `${item.name} grants ${self.fighter.name} ${block} block` });
+  }
+  if (poison) {
+    //Works with ticks, but stacks upon the current value
+    enemy.poison += poison;
+    enemy.hp -= enemy.poison;
+    emit({ ...base, target: enemySide, kind: "poison", amount: enemy.poison, message: `${item.name} hits ${enemy.fighter.name} for ${enemy.poison} poison` });
+  }
+  if (heal) {
+    //No one-time use, does not stack but heals up until the maxHP
+    self.hp = Math.min(self.fighter.maxHp, self.hp + heal);
+    emit({ ...base, target: enemySide, kind: "heal", amount: heal, message: `${item.name} heals ${self.fighter.name} for ${heal} HP` });  
   }
 }
 
