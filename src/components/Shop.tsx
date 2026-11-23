@@ -1,5 +1,6 @@
 import { getItem } from "../items";
-import { buyBlocker } from "../run";
+// [req-1.4]: Reuse the reroll validation and cost from the run rules.
+import { buyBlocker, rerollBlocker, REROLL_COST } from "../run";
 import { itemIdsOf } from "../shop";
 import type { RunState } from "../types";
 import { ActiveItemSetBonus } from "./ActiveItemSetBonus";
@@ -8,12 +9,25 @@ import { ItemCard } from "./ItemCard";
 interface ShopProps {
   run: RunState;
   onBuy: (offerIndex: number) => void;
+  // [req-1.4]: Allow the parent component to trigger a reroll.
+  onReroll: () => void;
 }
 
-export function Shop({ run, onBuy }: ShopProps) {
+export function Shop({ run, onBuy, onReroll }: ShopProps) {
+  const rerollError = rerollBlocker(run);
   return (
     <section className="rounded-lg border border-panel-edge bg-panel p-4">
       <h2 className="mb-3 font-display text-xl font-bold">🏪 Shop</h2>
+      {/* [req-1.4]: Allow rerolling all shop offers for one gold. */}
+      <button
+        type="button"
+        onClick={onReroll}
+        disabled={rerollError !== null}
+        title={rerollError ?? undefined}
+        className="mb-3 rounded-md bg-gold px-3 py-1.5 font-bold text-ink hover:brightness-110 disabled:bg-panel-edge disabled:text-muted"
+      >
+        {rerollError ?? `Reroll for ${REROLL_COST} gold`}
+      </button>
       <ul className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
         {run.shop.map((itemId, index) => {
           if (!itemId) {
