@@ -47,6 +47,38 @@ export function buyItem(state: RunState, offerIndex: number): RunState {
   return { ...state, gold: state.gold - getItem(itemId).price, shop, backpack, nextUid: state.nextUid + 1 };
 }
 
+/** Why an item can't be sold, or `null` if it can. */
+export function sellBlocker(state: RunState, slotIndex: number): string | null {
+  // [req-1.2]: Only valid backpack slots can be sold.
+  if (!Number.isInteger(slotIndex) || slotIndex < 0 || slotIndex >= state.backpack.length) {
+    return "Invalid backpack slot";
+  }
+
+  // [req-1.2]: Empty slots contain no item to sell.
+  if (!state.backpack[slotIndex]) return "Empty backpack slot";
+  return null;
+}
+
+/** Sells an item and returns the updated run state. */
+export function sellItem(state: RunState, slotIndex: number): RunState {
+  // [req-1.2]: Invalid sales leave the original state unchanged.
+  if (sellBlocker(state, slotIndex) !== null) return state;
+
+  // [req-1.2]: Verify the selected item actually exists.
+  const item = state.backpack[slotIndex];
+  if (!item) return state;
+
+  // [req-1.2]: Calculate half the original price, rounded down.
+  const sellPrice = Math.floor(getItem(item.itemId).price / 2);
+
+  // [req-1.2]: Copy the backpack before removing the selected item.
+  const backpack = [...state.backpack];
+  backpack[slotIndex] = null;
+
+  // [req-1.2]: Remove the item and add gold in one state update.
+  return { ...state, gold: state.gold + sellPrice, backpack };
+}
+
 export type RunOutcome = "victory" | "defeat";
 
 /** `victory` / `defeat` once the run is over, otherwise `null`. */
