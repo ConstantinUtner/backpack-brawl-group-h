@@ -30,7 +30,6 @@ interface BackpackProps {
 
 // [req-2.3]: Receive the move callback from ShopPage.
 export function Backpack({ backpack, onSell, onMove }: BackpackProps) {
-  const activeSets = getActiveSets(itemIdsOf(backpack));
   // [req-2.2]: null means that no backpack item is selected.
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
 
