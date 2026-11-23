@@ -79,7 +79,7 @@ export interface BattleEvent {
   kind: BattleEventKind;
   amount: number;
   /** Item that triggered the event. */
-  itemId: string;
+  itemId?: string;
   message: string;
 }
 
