@@ -57,7 +57,11 @@ export function Backpack({ backpack, onSell, onMove }: BackpackProps) {
   return (
     <section className="rounded-lg border border-panel-edge bg-panel p-4">
       <h2 className="font-display text-xl font-bold">🎒 Backpack</h2>
-      <p className="mb-3 text-sm text-muted">Hover an item to see its stats.</p>
+      {/* [req-2.4]: Explain how players can arrange their backpack. */}
+      <p className="mb-3 text-sm text-muted">
+        Select an item, then click another slot to move or swap it.
+        Hover an item to see its stats.
+      </p>
       <ul className="grid gap-2" style={{ gridTemplateColumns: `repeat(${BACKPACK_COLS}, minmax(0, 1fr))` }}>
         {backpack.map((slot, index) => {
           const item = slot ? getItem(slot.itemId) : null;
@@ -70,12 +74,17 @@ export function Backpack({ backpack, onSell, onMove }: BackpackProps) {
               aria-label={item ? item.name : `Empty slot ${index + 1}`}
               className={[
                 "flex aspect-square flex-col items-center justify-center gap-1 rounded-md border-2 p-1",
-                // [req-2.2]: Highlight the selected slot so the player can see the selection.
+                // [req-2.2]: Highlight the selected slot in gold.
                 selectedIndex === index
                   ? "border-gold bg-gold/20"
-                  : item
-                    ? "border-gold/40 bg-ink/40"
-                    : "border-dashed border-panel-edge",
+                  // [req-2.4]: Highlight all other slots in green when an item is selected.
+                  // Both empty and occupied slots are valid targets for moving or swapping.
+                  : selectedIndex !== null
+                    ? "border-green-500 bg-green-500/10"
+                    // Keep the default appearance when no item is selected.
+                    : item
+                      ? "border-gold/40 bg-ink/40"
+                      : "border-dashed border-panel-edge",
               ].join(" ")}
             >
               {/* [req-2.3]: Every slot is clickable, including empty target slots. */}
@@ -111,6 +120,16 @@ export function Backpack({ backpack, onSell, onMove }: BackpackProps) {
           );
         })}
       </ul>
+      {/* [req-2.4]: Show a cancel button only while an item is selected. */}
+      {selectedIndex !== null && (
+        <button
+          type="button"
+          onClick={() => setSelectedIndex(null)}
+          className="mt-3 w-full rounded-md border border-panel-edge px-3 py-1.5 text-sm hover:bg-ink/40"
+        >
+          Cancel selection
+        </button>
+      )}
     </section>
   );
 }
