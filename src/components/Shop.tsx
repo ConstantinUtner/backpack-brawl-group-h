@@ -1,6 +1,8 @@
 import { getItem } from "../items";
 import { buyBlocker } from "../run";
+import { itemIdsOf } from "../shop";
 import type { RunState } from "../types";
+import { ActiveItemSetBonus } from "./ActiveItemSetBonus";
 import { ItemCard } from "./ItemCard";
 
 interface ShopProps {
@@ -12,7 +14,7 @@ export function Shop({ run, onBuy }: ShopProps) {
   return (
     <section className="rounded-lg border border-panel-edge bg-panel p-4">
       <h2 className="mb-3 font-display text-xl font-bold">🏪 Shop</h2>
-      <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+      <ul className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
         {run.shop.map((itemId, index) => {
           if (!itemId) {
             return (
@@ -40,6 +42,7 @@ export function Shop({ run, onBuy }: ShopProps) {
           );
         })}
       </ul>
+      <ActiveItemSetBonus itemIds={itemIdsOf(run.backpack)}/>
     </section>
   );
 }

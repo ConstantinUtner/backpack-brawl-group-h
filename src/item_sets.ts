@@ -13,14 +13,15 @@ export const ITEM_SETS = {
   }
 }
 
-const countOfItemsOfSet = {
+export function getActiveSets(itemIds: string[]): ItemSetId[] {
+  //Bugfix: Living outside the function accumulates more counts and duplications of the activeSet
+  const countOfItemsOfSet = {
     fire: 0,
     defense: 0,
   };
 
-const activeSets: ItemSetId[] = [];
+  const activeSets: ItemSetId[] = [];
 
-export function getActiveSets(itemIds: string[]): ItemSetId[] {
   for (const id of itemIds){
     //get the setItems and count them
     const set = getItem(id).set;
