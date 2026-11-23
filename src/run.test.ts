@@ -6,6 +6,7 @@ import {
   buyItem,
   sellBlocker,
   sellItem,
+  moveBackpackItem,
   rerollBlocker,
   rerollShop,
   REROLL_COST
@@ -819,5 +820,228 @@ describe("Shop economy integration [req-1.5]", () => {
     // Reroll must preserve the backpack and UID counter.
     expect(afterReroll.backpack).toEqual(afterSell.backpack);
     expect(afterReroll.nextUid).toBe(afterSell.nextUid);
+  });
+});
+
+describe("Backpack arrangement [req-2.1]", () => {
+
+  // [req-2.1]: Test moving an item to an empty slot.
+  // Why: Moving must preserve the item and leave unrelated run data unchanged.
+  // Expected: The item moves to the target, and the original state stays unchanged.
+  it("moves an item to an empty slot", () => {
+
+    // ARRANGE: Create a new run with one item in slot 0.
+    const state = newRun(123);
+    const item = { uid: "item-1", itemId: "pot-lid" };
+    state.backpack[0] = item;
+
+    // ACT: Move the item from slot 0 to the empty slot 2.
+    const result = moveBackpackItem(state, 0, 2);
+
+    // ASSERT: A successful move must create a new RunState.
+    expect(result).not.toBe(state);
+
+    // Only the backpack positions must change.
+    expect(result).toEqual({
+      ...state,
+      backpack: [null, null, item, null, null, null]
+    });
+
+    // The target must contain the same item instance.
+    expect(result.backpack[2]).toBe(item);
+
+    // The shop array must remain the same.
+    expect(result.shop).toBe(state.shop);
+
+    // The original backpack must not be modified.
+    expect(state.backpack).toEqual([item, null, null, null, null, null]);
+  });
+
+  // [req-2.1]: Test swapping two occupied slots.
+  // Why: Swapping must preserve both item instances without modifying the original state.
+  // Expected: Both items exchange positions while the original backpack stays unchanged.
+  it("swaps two occupied slots", () => {
+
+    // ARRANGE: Create a run with two different items.
+    const state = newRun(123);
+    const first = { uid: "item-1", itemId: "pot-lid" };
+    const second = { uid: "item-2", itemId: "hunting-bow" };
+
+    // Place the items in slots 0 and 1.
+    state.backpack[0] = first;
+    state.backpack[1] = second;
+
+    // ACT: Swap the items in slots 0 and 1.
+    const result = moveBackpackItem(state, 0, 1);
+
+    // ASSERT: The items must exchange positions.
+    expect(result.backpack[0]).toBe(second);
+    expect(result.backpack[1]).toBe(first);
+
+    // The original item positions must remain unchanged.
+    expect(state.backpack[0]).toBe(first);
+    expect(state.backpack[1]).toBe(second);
+  });
+
+  // [req-2.1]: Test moving from an empty slot.
+  // Why: An empty slot contains no item that can be moved.
+  // Expected: The invalid move returns the original RunState.
+  it("rejects moving an empty slot", () => {
+
+    // ARRANGE: Create a run with an empty backpack.
+    const state = newRun(123);
+
+    // ACT: Attempt moving from empty slot 0 to slot 1.
+    const result = moveBackpackItem(state, 0, 1);
+
+    // ASSERT: The original RunState must be returned unchanged.
+    expect(result).toBe(state);
+  });
+
+  // [req-2.1]: Test moving an item onto its own slot.
+  // Why: Moving to the same position must not create an unnecessary state change.
+  // Expected: The original RunState is returned unchanged.
+  it("rejects moving to the same slot", () => {
+
+    // ARRANGE: Create a run with one item in slot 0.
+    const state = newRun(123);
+    state.backpack[0] = { uid: "item-1", itemId: "pot-lid" };
+
+    // ACT: Attempt moving the item from slot 0 to slot 0.
+    const result = moveBackpackItem(state, 0, 0);
+
+    // ASSERT: The original RunState must be returned unchanged.
+    expect(result).toBe(state);
+  });
+
+  // [req-2.1]: Test invalid backpack indices.
+  // Why: Only integer indices from 0 to 5 are valid backpack positions.
+  // Expected: Every invalid move returns the original RunState.
+  it("rejects invalid slot indices", () => {
+
+    // ARRANGE: Create a run with one item.
+    const state = newRun(123);
+    state.backpack[0] = { uid: "item-1", itemId: "pot-lid" };
+
+    // Prepare invalid source and target positions.
+    const invalidMoves = [
+      [-1, 2],
+      [0, 6],
+      [1.5, 2],
+      [0, -1],
+      [6, 0],
+      [0, 1.5]
+    ];
+
+    // ACT & ASSERT: Attempt each invalid move.
+    for (const [from, to] of invalidMoves) {
+
+      // Invalid positions must never change the RunState.
+      expect(moveBackpackItem(state, from, to)).toBe(state);
+    }
+  });
+
+  // [req-2.5]: Test multiple consecutive backpack moves.
+  // Why: Repeated moves and swaps must not lose or duplicate items.
+  // Expected: Both items remain at the correct positions after each action.
+  it("preserves items across consecutive moves", () => {
+
+    // ARRANGE: Create a run with two different items.
+    const state = newRun(123);
+    const first = { uid: "item-1", itemId: "pot-lid" };
+    const second = { uid: "item-2", itemId: "hunting-bow" };
+
+    // Place the items in the first two slots.
+    state.backpack[0] = first;
+    state.backpack[1] = second;
+
+    // ACT 1: Move the first item to empty slot 2.
+    const afterMove = moveBackpackItem(state, 0, 2);
+
+    // ACT 2: Swap the second item with the first item.
+    const afterSwap = moveBackpackItem(afterMove, 1, 2);
+
+    // ASSERT: Both items must be at their expected final positions.
+    expect(afterSwap.backpack).toEqual([
+      null, first, second, null, null, null
+    ]);
+
+    // The intermediate state must remain unchanged after the second move.
+    expect(afterMove.backpack).toEqual([
+      null, second, first, null, null, null
+    ]);
+
+    // The original backpack must remain unchanged.
+    expect(state.backpack).toEqual([
+      first, second, null, null, null, null
+    ]);
+  });
+
+  // [req-2.5]: Test swapping when the backpack is full.
+  // Why: Swapping must work without empty slots and preserve all item instances.
+  // Expected: Two items exchange positions and all six original UIDs remain.
+  it("swaps items when the backpack is full", () => {
+
+    // ARRANGE: Create a run with all six backpack slots occupied.
+    const state = newRun(123);
+
+    // Give each item a unique UID.
+    state.backpack = state.backpack.map((_, index) => ({
+      uid: `item-${index + 1}`,
+      itemId: "pot-lid",
+    }));
+
+    // Remember all original item UIDs.
+    const originalUids = state.backpack.map((item) => item?.uid);
+
+    // ACT: Swap the first and last backpack items.
+    const result = moveBackpackItem(state, 0, 5);
+
+    // Read the UIDs after swapping.
+    const resultUids = result.backpack.map((item) => item?.uid);
+
+    // ASSERT: The first and last items must exchange positions.
+    expect(resultUids[0]).toBe(originalUids[5]);
+    expect(resultUids[5]).toBe(originalUids[0]);
+
+    // Every slot must still contain an item.
+    expect(result.backpack.every((item) => item !== null)).toBe(true);
+
+    // The backpack must still contain exactly six slots.
+    expect(result.backpack).toHaveLength(6);
+
+    // [req-2.5]: All original UIDs must still exist without duplicates.
+    expect([...resultUids].sort()).toEqual([...originalUids].sort());
+
+    // The original backpack must retain its original UID order.
+    expect(state.backpack.map((item) => item?.uid)).toEqual(originalUids);
+  });
+
+  // [req-2.5]: Test that moving only changes the backpack.
+  // Why: Arrangement must not modify gold, shop offers or other run properties.
+  // Expected: Only the backpack changes and the original RunState stays unchanged.
+  it("preserves unrelated run properties", () => {
+
+    // ARRANGE: Create a run with one item in slot 0.
+    const state = newRun(123);
+    state.backpack[0] = { uid: "item-1", itemId: "pot-lid" };
+
+    // Save an independent copy of the original RunState.
+    const original = structuredClone(state);
+
+    // ACT: Move the item from slot 0 to slot 3.
+    const result = moveBackpackItem(state, 0, 3);
+
+    // ASSERT: Moving must create a new backpack array.
+    expect(result.backpack).not.toBe(state.backpack);
+
+    // All other RunState properties must remain unchanged.
+    expect(result).toEqual({
+      ...original,
+      backpack: result.backpack
+    });
+
+    // The original RunState must not be mutated.
+    expect(state).toEqual(original);
   });
 });

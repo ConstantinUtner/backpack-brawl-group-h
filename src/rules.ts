@@ -54,8 +54,12 @@ export const RULES: RuleSection[] = [
       `Sell an item for half its original price, rounded down.`,
       // [req-1.4]: Explain reroll costs and behavior.
       `Reroll all shop offers for ${REROLL_COST} gold.`,
-      // [req-1.4]: Explain the restrictions for shop actions.
-      `Buying, selling and rerolling are only available while shopping.`,
+      // [req-2.4]: Explain how to move and swap backpack items.
+      `Select an item, then click another slot to move or swap it.`,
+      // [req-2.4]: Explain valid targets and how to cancel a selection.
+      `Green slots show valid moves. Click the selected item again or use Cancel selection to cancel.`,
+      // [req-2.4]: Explain that backpack arrangement is also shop-only.
+      `Buying, selling, rerolling and rearranging items are only available while shopping.`,
       `Only items in your backpack fight. Their position doesn't matter.`,
     ],
   },
