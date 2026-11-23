@@ -3,7 +3,7 @@ import { getActiveSets } from "../item_sets";
 import { describeEffects, getItem } from "../items";
 import { BACKPACK_COLS, itemIdsOf } from "../shop";
 import type { Backpack as BackpackSlots, ItemDef, ItemSetId } from "../types";
-import { ItemIcon } from "./ItemCard";
+import { ItemIcon } from "./ItemIcon";
 
 /** Hover text for a backpack slot: name, effects and cooldown. */
 /**REQUIREMENT 4: Showing the active set bonus in the backpack */

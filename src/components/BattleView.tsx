@@ -3,7 +3,7 @@ import { getItem } from "../items";
 import { STATUS_HELP } from "../rules";
 import type { BattleEvent, BattleEventKind, BattleReplay, Fighter, FighterSnapshot, Side } from "../types";
 import { ActiveItemSetBonus } from "./ActiveItemSetBonus";
-import { ItemIcon } from "./ItemCard";
+import { ItemIcon } from "./ItemIcon";
 
 interface BattleViewProps {
   battle: BattleReplay;
