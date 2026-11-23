@@ -92,12 +92,12 @@ Die neuen Items erhalten Preise von 3, 5 und 7 Gold je Effektgruppe (aufsteigend
     - Made poison purple and heal green in the Combat Log and visual representation of the FighterPanel
     - The HP is currently shown as a "current Heal"-text with the sum of all heal from the items inside the backpack
   
-  ### AI usage:
+  #### AI usage:
     - AI was helpful in bugfix (the poison did not stack correctly)
     - Used AI for information about Tailwind CSS for the theme colours and classes (e.g. heal amount of the current heal)
     - AI drafted a VITEST for poison stacking, block bypass, healing limits and the targets - which helped me figure out a bug in the healing process beforehand (healing the opponent instead of myself)
 
-  ### Reflections:
+  #### Reflections:
     - The combat logs are not always what is really happening. Because they are treated separately I needed to make sure that the correct thing is happening with explorative testing
     - A lot of explorative testing was needed to figure out if the items are doing what they are supposed to do because of the randomness. Testing helped immensely instead of that - visual things are still important to observe manually.
 
@@ -139,6 +139,22 @@ Das stellt sicher, dass Burn durch Fire-Items schneller aufgebaut werden kann un
 Die bestehenden Regeln bleiben erhalten: Maximal **60 Ticks**; beide gleichzeitig auf 0 HP = Niederlage des Spielers; bei Timeout entscheidet der prozentuale HP-Anteil, Gleichstand = Niederlage. Dieselben Eingaben müssen immer denselben Kampf ergeben.
 
 Alle Statuswerte und aktiven Set-Boni werden in der Kampfansicht, im Combat Log und im Rules Panel erklärt.
+
+### Diary Information:
+#### Important decisions:
+  - We made the decision, after testing burn to a certain point, that we need to set the requirement straight and apply stack with every item activation, but apply burn separately every 2 ticks to maintain a constant burn damage. Tweaking this is the hardest part --> cooldown time, when the decay of -1 burn happens and so on.
+  - The decision further was made to apply the same principle (but slower) to the poison damage. Stack it with every activation but activate poison damage every 4 ticks. Also tweaking this is part of the manual testing process. Sometimes, when you aren't lucky and don't get the items it takes time or you can lose. With the right luck you can go through every enemy in passing colors so to speak.
+  - One important decision is the way the active items are shown. We show it very simply to not overcomplicate things with an activeSetBonus.tsx
+
+#### AI usage:
+  - I used AI for the HTML and Tailwind CSS parts when designing the new parts inside the already existing sections
+  - I used AI for bugfix regarding the tooltip integration, because it happened to throw an error when I tried to calculate the bonus and include the set bonus into it
+  - I used AI for the math behind the calculation in battle.ts for the Math.min and absorption/hp calculation to not go under 0 (head not working)
+
+#### Reflections:
+  - Working with effects is more difficult than I thought. The tweaking behind it and to know if and when something damages or stacks is a different kind of problem
+  - Games like Bazar have it in a higher scale and very professional too. I understand how much work is put into these mathematics or logic based calculations.
+  - The effect itself is easy enough, everything around it - showing it everywhere, not forgetting a tooltip, a information panel, the combat log or so is the most complicated of the requirement.
 
 ## 7. B5 – Resilient Matchmaking
 

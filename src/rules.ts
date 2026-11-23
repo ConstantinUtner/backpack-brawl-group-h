@@ -67,10 +67,20 @@ export const RULES: RuleSection[] = [
     title: "🧪 Item Effects",
     rules: [
       `Some Battle Items have special Effects like Poison or Heal.`,
-      `The effects are activated during battle after a certain cooldown time.`,
-      `Heal and poison effect affects the HP oder the user or enemy directly, ignoring the block.`,
-      `The (🧪)poison effect stacks with every activation.`,
-      `The (🔥)burn effect stacks with every activation, but does not ignore block.`
+      `The effects are activated during battle after a certain time.`,
+      `Heal and poison effect affects the HP or the user or enemy directly, ignoring block.`,
+      `The (🧪)poison effects stack with every activation.`,
+      `The (🔥)burn effects stack with every activation, but does not ignore block.`
+    ],
+  },
+  {
+    title: "📖 Item Sets",
+    rules: [
+      `Some Battle Items have a set bonus that can be applied.`,
+      `It only applies in Battle if you have 2+ items of the same set bonus category.`,
+      `The Item Sets are marked with a badge on the top right corner and the active bonuses are shown below the panels.`,
+      `🔥 Fire Set items: add +1 burn to the burn stack for each set item in the same category.`,
+      `🛡️ Defense Set Items: add +1 block to each set item.`,
     ],
   },
 ];
