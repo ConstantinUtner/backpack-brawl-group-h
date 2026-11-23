@@ -2,6 +2,8 @@ import { TICK_SECONDS, MAX_TICKS } from "../battle";
 import { getItem } from "../items";
 import { STATUS_HELP } from "../rules";
 import type { BattleEvent, BattleEventKind, BattleReplay, Fighter, FighterSnapshot, Side } from "../types";
+import { ActiveItemSetBonus } from "./ActiveItemSetBonus";
+import { ItemIcon } from "./ItemIcon";
 
 interface BattleViewProps {
   battle: BattleReplay;
@@ -99,7 +101,10 @@ const EVENT_COLOUR: Partial<Record<BattleEventKind, string>> = {
 };
 
 function LogLine({ event }: { event: BattleEvent }) {
-  const icon = getItem(event.itemId).icon;
+  //Bugfix after the new approach with burn/poison ever so often, asking for the icon if there is an item present
+  const icon = event.itemId ?
+    getItem(event.itemId).icon : event.kind === "burn" ?
+    "🔥" : "🧪";
   const byPlayer = event.source === "player";
   const text = (
     <span className={`flex gap-1.5 ${byPlayer ? "" : "flex-row-reverse text-right"} ${EVENT_COLOUR[event.kind] ?? ""}`}>
@@ -126,7 +131,7 @@ interface FighterPanelProps {
 
 function FighterPanel({ side, icon, fighter, snapshot }: FighterPanelProps) {
   /* REQUIREMENT 3: The FighterPanel snapshot, which has been updated elsewhere needs the value to be shown on the Bars during battle */
-  const { hp, maxHp, block, poison } = snapshot;
+  const { hp, maxHp, block, poison, burn } = snapshot;
   const knockedOut = hp <= 0;
   /* REQUIREMENT 3: Adding calculation of how much heal is there from items */
   const healAmount = fighter.items.reduce(
@@ -149,18 +154,23 @@ function FighterPanel({ side, icon, fighter, snapshot }: FighterPanelProps) {
       <Bar label="HP" value={hp} max={maxHp} text={`${hp} / ${maxHp}`} colour="bg-life" help={STATUS_HELP.hp} />
       <Bar label="Block" value={block} max={maxHp} text={`🛡️ ${block}`} colour="bg-block" help={STATUS_HELP.block} />
       <Bar label="Poison" value={poison} max={maxHp} text={`🧪 ${poison}`} colour="bg-poison" help={STATUS_HELP.poison} />
+      {/** REQUIREMENT 4: Adding a new bar for burn damage after poison in color red? */}
+      <Bar label="Burn" value={burn} max={maxHp} text={`🔥 ${burn}`} colour="bg-burn" help={STATUS_HELP.burn} />
 
       <ul className="flex flex-wrap gap-1" aria-label="Items">
         {fighter.items.map((item, index) => (
           <li key={index} title={item.name} className="rounded bg-ink/50 px-1.5 py-0.5 text-xl">
-            {item.icon}
+            <ItemIcon item={getItem(item.itemId)} />
           </li>
         ))}
       </ul>
 
+      {/** REQUIREMENT 4: Showing the active item-set information */}
+        <ActiveItemSetBonus itemIds={fighter.items.map((item) => item.itemId)}/>
+
        {/* REQUIREMENT 3: Adding the current heal amount to the panel */}
-       <span className="shrink-0 text-sm text-muted">
-          Current heal: {healAmount} HP
+       <span className="shrink-0 text-sm text-muted rounded border border-gold/40 bg-gold/10 px-2 py-1">
+          <strong className="font-bold">Current heal:</strong> {healAmount} HP
        </span>
     </article>
   );

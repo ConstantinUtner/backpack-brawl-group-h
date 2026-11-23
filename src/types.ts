@@ -4,7 +4,11 @@ export interface ItemEffects {
   /* REQUIREMENT 3: ItemEffects is the interface to work for item connection and tooltips */
   poison?: number;
   heal?: number;
+  burn?: number;
 }
+
+/** REQUIREMENT 4: New ItemSets defined as type for the interface ItemDef */
+export type ItemSetId = "fire" | "defense";
 
 export interface ItemDef {
   id: string;
@@ -14,6 +18,8 @@ export interface ItemDef {
   /** Cooldown in battle ticks (1 tick = 0.5 s). */
   cooldown: number;
   effects: ItemEffects;
+  /** REQUIREMENT 4: ItemSet definition */
+  set?: ItemSetId
 }
 
 /** A concrete item the player owns; several instances may share one `itemId`. */
@@ -59,9 +65,10 @@ export interface FighterSnapshot {
   maxHp: number;
   block: number;
   poison: number;
+  burn: number;
 }
 
-export type BattleEventKind = "damage" | "block" | "poison" | "heal";
+export type BattleEventKind = "damage" | "block" | "poison" | "heal" | "burn";
 
 export interface BattleEvent {
   tick: number;
@@ -72,7 +79,7 @@ export interface BattleEvent {
   kind: BattleEventKind;
   amount: number;
   /** Item that triggered the event. */
-  itemId: string;
+  itemId?: string;
   message: string;
 }
 

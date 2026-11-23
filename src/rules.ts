@@ -16,7 +16,8 @@ export const EFFECT_HELP: Record<keyof ItemEffects, string> = {
   block: "Block: absorbs incoming damage until used up. Unused block stays for the rest of the battle.",
   /* REQUIREMENT 3: needed to add poison and heal for 'hovering-over' effect at items*/
   poison: "Poison: poisons the enemy to take damage over time. It is not absorbed by block. Can be stacked by multiple use!",
-  heal: "Heal: Heals the user immediately after use for the amount mentioned."
+  heal: "Heal: Heals the user immediately after use for the amount mentioned.",
+  burn: "Burn: Burns the enemy over time. It is absorbed by block and can be stacked by multiple use."
 };
 
 export const COOLDOWN_HELP = `Cooldown: the item fires every time this much battle time has passed (1 tick = ${TICK_SECONDS} s).`;
@@ -27,6 +28,7 @@ export const STATUS_HELP = {
   block: EFFECT_HELP.block,
   /* REQUIREMENT 3: Needed to add the poison to the STATUS_HELP for explaining the poison state at battle time*/
   poison: EFFECT_HELP.poison,
+  burn: EFFECT_HELP.burn,
   timer: `After ${BATTLE_SECONDS} s the fighter with the higher share of HP wins; a tie counts as your loss.`,
 };
 
@@ -75,9 +77,20 @@ export const RULES: RuleSection[] = [
     title: "🧪 Item Effects",
     rules: [
       `Some Battle Items have special Effects like Poison or Heal.`,
-      `The effects are activated during battle after a certain cooldown time.`,
-      `Heal and poison effect affects the HP oder the user or enemy directly, ignoring the block.`,
-      `The (🧪)poison effect stacks with every activation, e.g. from 1 poison, next tick after cooldown to 1+1 poison and so on.`
+      `The effects are activated during battle after a certain time.`,
+      `Heal and poison effect affects the HP or the user or enemy directly, ignoring block.`,
+      `The (🧪)poison effects stack with every activation.`,
+      `The (🔥)burn effects stack with every activation, but does not ignore block.`
+    ],
+  },
+  {
+    title: "📖 Item Sets",
+    rules: [
+      `Some Battle Items have a set bonus that can be applied.`,
+      `It only applies in Battle if you have 2+ items of the same set bonus category.`,
+      `The Item Sets are marked with a badge on the top right corner and the active bonuses are shown below the panels.`,
+      `🔥 Fire Set items: add +1 burn to the burn stack for each set item in the same category.`,
+      `🛡️ Defense Set Items: add +1 block to each set item.`,
     ],
   },
 ];

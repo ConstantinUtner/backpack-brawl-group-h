@@ -12,6 +12,7 @@
   --color-life: #d6534a;
   --color-block: #a8a29e;
   --color-poison: #a855f7;
+  --color-burn: #b22222;
 }
 
 @layer base {
