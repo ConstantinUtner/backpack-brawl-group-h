@@ -30,6 +30,8 @@ export function buyBlocker(state: RunState, offerIndex: number): string | null {
   const itemId = state.shop[offerIndex];
   if (!itemId) return "Already sold";
   if (state.gold < getItem(itemId).price) return "Not enough gold";
+  // [req-1.1]: Prevent buying when no backpack slot is available.
+  if (firstFreeSlot(state) === -1) return "Backpack is full";
   return null;
 }
 
