@@ -29,6 +29,11 @@ export function firstFreeSlot(state: RunState): number {
 
 /** Why an offer can't be bought right now, or `null` if it can. */
 export function buyBlocker(state: RunState, offerIndex: number): string | null {
+  // [req-1.1]: Reject indices that are not valid shop positions.
+  if (!Number.isInteger(offerIndex) || offerIndex < 0 || offerIndex >= state.shop.length) {
+    return "Invalid shop offer";
+  }
+
   const itemId = state.shop[offerIndex];
   if (!itemId) return "Already sold";
   if (state.gold < getItem(itemId).price) return "Not enough gold";
@@ -40,7 +45,9 @@ export function buyBlocker(state: RunState, offerIndex: number): string | null {
 /** Buys a shop offer into the first free backpack slot; unchanged state if not allowed. */
 export function buyItem(state: RunState, offerIndex: number): RunState {
   if (buyBlocker(state, offerIndex) !== null) return state;
-  const itemId = state.shop[offerIndex]!;
+  // [req-1.1]: Verify the offer exists before using it.
+  const itemId = state.shop[offerIndex];
+  if (!itemId) return state;
   const slot = firstFreeSlot(state);
   const backpack = [...state.backpack];
   backpack[slot] = { uid: `item-${state.nextUid}`, itemId };
