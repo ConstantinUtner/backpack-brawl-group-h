@@ -6,6 +6,8 @@ export const START_GOLD = 10;
 export const START_LIVES = 3;
 export const WINS_TO_VICTORY = 5;
 export const GOLD_PER_ROUND = 5;
+// [req-1.3]: A shop reroll costs exactly one gold.
+export const REROLL_COST = 1;
 
 export function newRun(seed: number): RunState {
   const roll = rollShop(seed);
@@ -27,22 +29,82 @@ export function firstFreeSlot(state: RunState): number {
 
 /** Why an offer can't be bought right now, or `null` if it can. */
 export function buyBlocker(state: RunState, offerIndex: number): string | null {
+  // [req-1.1]: Reject indices that are not valid shop positions.
+  if (!Number.isInteger(offerIndex) || offerIndex < 0 || offerIndex >= state.shop.length) {
+    return "Invalid shop offer";
+  }
+
   const itemId = state.shop[offerIndex];
   if (!itemId) return "Already sold";
   if (state.gold < getItem(itemId).price) return "Not enough gold";
+  // [req-1.1]: Prevent buying when no backpack slot is available.
+  if (firstFreeSlot(state) === -1) return "Backpack is full";
   return null;
 }
 
 /** Buys a shop offer into the first free backpack slot; unchanged state if not allowed. */
 export function buyItem(state: RunState, offerIndex: number): RunState {
   if (buyBlocker(state, offerIndex) !== null) return state;
-  const itemId = state.shop[offerIndex]!;
+  // [req-1.1]: Verify the offer exists before using it.
+  const itemId = state.shop[offerIndex];
+  if (!itemId) return state;
   const slot = firstFreeSlot(state);
   const backpack = [...state.backpack];
   backpack[slot] = { uid: `item-${state.nextUid}`, itemId };
   const shop = [...state.shop];
   shop[offerIndex] = null;
   return { ...state, gold: state.gold - getItem(itemId).price, shop, backpack, nextUid: state.nextUid + 1 };
+}
+
+/** Why an item can't be sold, or `null` if it can. */
+export function sellBlocker(state: RunState, slotIndex: number): string | null {
+  // [req-1.2]: Only valid backpack slots can be sold.
+  if (!Number.isInteger(slotIndex) || slotIndex < 0 || slotIndex >= state.backpack.length) {
+    return "Invalid backpack slot";
+  }
+
+  // [req-1.2]: Empty slots contain no item to sell.
+  if (!state.backpack[slotIndex]) return "Empty backpack slot";
+  return null;
+}
+
+/** Sells an item and returns the updated run state. */
+export function sellItem(state: RunState, slotIndex: number): RunState {
+  // [req-1.2]: Invalid sales leave the original state unchanged.
+  if (sellBlocker(state, slotIndex) !== null) return state;
+
+  // [req-1.2]: Verify the selected item actually exists.
+  const item = state.backpack[slotIndex];
+  if (!item) return state;
+
+  // [req-1.2]: Calculate half the original price, rounded down.
+  const sellPrice = Math.floor(getItem(item.itemId).price / 2);
+
+  // [req-1.2]: Copy the backpack before removing the selected item.
+  const backpack = [...state.backpack];
+  backpack[slotIndex] = null;
+
+  // [req-1.2]: Remove the item and add gold in one state update.
+  return { ...state, gold: state.gold + sellPrice, backpack };
+}
+
+/** Why the shop can't be rerolled, or `null` if it can. */
+export function rerollBlocker(state: RunState): string | null {
+  // [req-1.3]: A reroll requires at least one gold.
+  if (state.gold < REROLL_COST) return "Not enough gold";
+  return null;
+}
+
+/** Rerolls all shop offers for one gold. */
+export function rerollShop(state: RunState): RunState {
+  // [req-1.3]: Invalid rerolls leave the original state unchanged.
+  if (rerollBlocker(state) !== null) return state;
+
+  // [req-1.3]: Generate four new offers using the current seed.
+  const roll = rollShop(state.seed);
+
+  // [req-1.3]: Update gold, offers and seed together.
+  return { ...state, gold: state.gold - REROLL_COST, shop: roll.offers, seed: roll.seed };
 }
 
 export type RunOutcome = "victory" | "defeat";
