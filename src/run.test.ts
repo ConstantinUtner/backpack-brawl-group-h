@@ -6,6 +6,7 @@ import {
   buyItem,
   sellBlocker,
   sellItem,
+  moveBackpackItem,
   rerollBlocker,
   rerollShop,
   REROLL_COST
@@ -819,5 +820,64 @@ describe("Shop economy integration [req-1.5]", () => {
     // Reroll must preserve the backpack and UID counter.
     expect(afterReroll.backpack).toEqual(afterSell.backpack);
     expect(afterReroll.nextUid).toBe(afterSell.nextUid);
+  });
+});
+
+describe("Backpack arrangement [req-2.1]", () => {
+  // [req-2.1]: Moving into an empty slot preserves the item and the rest of the run.
+  it("moves an item to an empty slot", () => {
+    const state = newRun(123);
+    const item = { uid: "item-1", itemId: "pot-lid" };
+    state.backpack[0] = item;
+
+    const result = moveBackpackItem(state, 0, 2);
+
+    expect(result).not.toBe(state);
+    expect(result).toEqual({ ...state, backpack: [null, null, item, null, null, null] });
+    expect(result.backpack[2]).toBe(item);
+    expect(result.shop).toBe(state.shop);
+    expect(state.backpack).toEqual([item, null, null, null, null, null]);
+  });
+
+  // [req-2.1]: Swapping preserves both item instances.
+  it("swaps two occupied slots", () => {
+    const state = newRun(123);
+    const first = { uid: "item-1", itemId: "pot-lid" };
+    const second = { uid: "item-2", itemId: "hunting-bow" };
+    state.backpack[0] = first;
+    state.backpack[1] = second;
+
+    const result = moveBackpackItem(state, 0, 1);
+
+    expect(result.backpack[0]).toBe(second);
+    expect(result.backpack[1]).toBe(first);
+    expect(state.backpack[0]).toBe(first);
+    expect(state.backpack[1]).toBe(second);
+  });
+
+  // [req-2.1]: An empty source cannot be moved.
+  it("rejects moving an empty slot", () => {
+    const state = newRun(123);
+
+    expect(moveBackpackItem(state, 0, 1)).toBe(state);
+  });
+
+  // [req-2.1]: Moving to the same slot leaves the run unchanged.
+  it("rejects moving to the same slot", () => {
+    const state = newRun(123);
+    state.backpack[0] = { uid: "item-1", itemId: "pot-lid" };
+
+    expect(moveBackpackItem(state, 0, 0)).toBe(state);
+  });
+
+  // [req-2.1]: Both indices must refer to existing slots.
+  it("rejects invalid slot indices", () => {
+    const state = newRun(123);
+    state.backpack[0] = { uid: "item-1", itemId: "pot-lid" };
+    const invalidMoves = [[-1, 2], [0, 6], [1.5, 2], [0, -1], [6, 0], [0, 1.5]];
+
+    for (const [from, to] of invalidMoves) {
+      expect(moveBackpackItem(state, from, to)).toBe(state);
+    }
   });
 });

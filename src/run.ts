@@ -88,6 +88,34 @@ export function sellItem(state: RunState, slotIndex: number): RunState {
   return { ...state, gold: state.gold + sellPrice, backpack };
 }
 
+/** Moves an item to another slot or swaps two items. */
+export function moveBackpackItem(
+  state: RunState,
+  fromIndex: number,
+  toIndex: number
+): RunState {
+  // [req-2.1]: Only existing integer slot indices are valid.
+  const isValidIndex = (index: number) =>
+    Number.isInteger(index) && index >= 0 && index < state.backpack.length;
+
+  // [req-2.1]: Reject invalid positions and moving to the same slot.
+  if (!isValidIndex(fromIndex) || !isValidIndex(toIndex) || fromIndex === toIndex) {
+    return state;
+  }
+
+  // [req-2.1]: An empty starting slot cannot be moved.
+  if (!state.backpack[fromIndex]) return state;
+
+  // [req-2.1]: Copy the array to avoid changing the original state.
+  const backpack = [...state.backpack];
+
+  // [req-2.1]: Swap both slots. If the target is empty, this moves the item.
+  [backpack[fromIndex], backpack[toIndex]] = [backpack[toIndex], backpack[fromIndex]];
+
+  // [req-2.1]: Return a new state with the updated backpack.
+  return { ...state, backpack };
+}
+
 /** Why the shop can't be rerolled, or `null` if it can. */
 export function rerollBlocker(state: RunState): string | null {
   // [req-1.3]: A reroll requires at least one gold.
