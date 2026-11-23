@@ -13,15 +13,36 @@ interface BackpackProps {
   backpack: BackpackSlots;
   // [req-1.4]: Receive the sell action from ShopPage.
   onSell: (slotIndex: number) => void;
+  // [req-2.3]: Notify the parent which two slots should be swapped.
+  onMove: (fromIndex: number, toIndex: number) => void;
 }
 
-export function Backpack({ backpack, onSell }: BackpackProps) {
+// [req-2.3]: Receive the move callback from ShopPage.
+export function Backpack({ backpack, onSell, onMove }: BackpackProps) {
   // [req-2.2]: null means that no backpack item is selected.
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
 
-  // [req-2.2]: Clicking the same item again cancels the selection.
-  function handleSelect(index: number) {
-    setSelectedIndex((current) => current === index ? null : index);
+  // [req-2.3]: Select, deselect, move or swap depending on the clicked slot.
+  function handleSlotClick(index: number) {
+    // [req-2.3]: Select an item if nothing is selected yet.
+    if (selectedIndex === null) {
+      if (backpack[index]) {
+        setSelectedIndex(index);
+      }
+      return;
+    }
+
+    // [req-2.3]: Clicking the selected slot again cancels selection.
+    if (selectedIndex === index) {
+      setSelectedIndex(null);
+      return;
+    }
+
+    // [req-2.3]: Move or swap the selected item with the target slot.
+    onMove(selectedIndex, index);
+
+    // [req-2.3]: Clear the selection after the move.
+    setSelectedIndex(null);
   }
 
   // [req-2.2]: Clear selection only when selling the selected item.
@@ -57,29 +78,34 @@ export function Backpack({ backpack, onSell }: BackpackProps) {
                     : "border-dashed border-panel-edge",
               ].join(" ")}
             >
-              {item && (
-                <>
-                  {/* [req-2.2]: Clicking the item selects or deselects its slot. */}
-                  <button
-                    type="button"
-                    onClick={() => handleSelect(index)}
-                    aria-pressed={selectedIndex === index}
-                    className="flex flex-col items-center gap-1"
-                  >
+              {/* [req-2.3]: Every slot is clickable, including empty target slots. */}
+              <button
+                type="button"
+                onClick={() => handleSlotClick(index)}
+                aria-pressed={selectedIndex === index}
+                aria-label={item ? item.name : `Empty slot ${index + 1}`}
+                className="flex w-full flex-1 flex-col items-center justify-center gap-1"
+              >
+                {item ? (
+                  <>
                     <span className="text-3xl leading-none sm:text-4xl" aria-hidden>
                       {item.icon}
                     </span>
                     <span className="text-center text-xs leading-tight">{item.name}</span>
-                  </button>
-                  {/* [req-1.4]: Sell only the item in the selected slot. */}
-                  <button
-                    type="button"
-                    onClick={() => handleSell(index)}
-                    className="rounded-md bg-gold px-2 py-1 text-xs font-bold text-ink hover:brightness-110"
-                  >
-                    Sell for {sellPrice} gold
-                  </button>
-                </>
+                  </>
+                ) : (
+                  <span className="text-xs text-muted">Empty</span>
+                )}
+              </button>
+              {/* [req-2.3]: Keep selling separate from selecting and moving. */}
+              {item && (
+                <button
+                  type="button"
+                  onClick={() => handleSell(index)}
+                  className="rounded-md bg-gold px-2 py-1 text-xs font-bold text-ink hover:brightness-110"
+                >
+                  Sell for {sellPrice} gold
+                </button>
               )}
             </li>
           );
