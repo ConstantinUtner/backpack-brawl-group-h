@@ -6,6 +6,8 @@ export const START_GOLD = 10;
 export const START_LIVES = 3;
 export const WINS_TO_VICTORY = 5;
 export const GOLD_PER_ROUND = 5;
+// [req-1.3]: A shop reroll costs exactly one gold.
+export const REROLL_COST = 1;
 
 export function newRun(seed: number): RunState {
   const roll = rollShop(seed);
@@ -77,6 +79,25 @@ export function sellItem(state: RunState, slotIndex: number): RunState {
 
   // [req-1.2]: Remove the item and add gold in one state update.
   return { ...state, gold: state.gold + sellPrice, backpack };
+}
+
+/** Why the shop can't be rerolled, or `null` if it can. */
+export function rerollBlocker(state: RunState): string | null {
+  // [req-1.3]: A reroll requires at least one gold.
+  if (state.gold < REROLL_COST) return "Not enough gold";
+  return null;
+}
+
+/** Rerolls all shop offers for one gold. */
+export function rerollShop(state: RunState): RunState {
+  // [req-1.3]: Invalid rerolls leave the original state unchanged.
+  if (rerollBlocker(state) !== null) return state;
+
+  // [req-1.3]: Generate four new offers using the current seed.
+  const roll = rollShop(state.seed);
+
+  // [req-1.3]: Update gold, offers and seed together.
+  return { ...state, gold: state.gold - REROLL_COST, shop: roll.offers, seed: roll.seed };
 }
 
 export type RunOutcome = "victory" | "defeat";

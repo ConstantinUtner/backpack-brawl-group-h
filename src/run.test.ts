@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { newRun, sellBlocker, sellItem } from "./run";
+import { newRun, rerollShop, sellBlocker, sellItem } from "./run";
 
 describe("Selling items", () => {
   it("sells an item for half its price, rounded down", () => {
@@ -33,4 +33,27 @@ describe("Selling items", () => {
     expect(result.backpack[0]).toBeNull();
     expect(result.backpack[1]).toEqual({ uid: "item-2", itemId: "pot-lid" });
   });
+});
+
+// [req-1.3]: Verify that a reroll costs one gold.
+// Expected: Four offers are generated and the seed advances.
+it("rerolls the shop for one gold", () => {
+  const state = newRun(123);
+
+  const result = rerollShop(state);
+
+  expect(result.gold).toBe(state.gold - 1);
+  expect(result.shop).toHaveLength(4);
+  expect(result.seed).not.toBe(state.seed);
+});
+
+// [req-1.3]: Verify that rerolling without gold is rejected.
+// Expected: The original RunState is returned unchanged.
+it("does not reroll without enough gold", () => {
+  const state = newRun(123);
+  state.gold = 0;
+
+  const result = rerollShop(state);
+
+  expect(result).toBe(state);
 });
