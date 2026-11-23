@@ -1,3 +1,5 @@
+// [req-2.2]: Keep the selected backpack slot in local React state.
+import { useState } from "react";
 import { TICK_SECONDS } from "../battle";
 import { describeEffects, getItem } from "../items";
 import { BACKPACK_COLS } from "../shop";
@@ -14,6 +16,23 @@ interface BackpackProps {
 }
 
 export function Backpack({ backpack, onSell }: BackpackProps) {
+  // [req-2.2]: null means that no backpack item is selected.
+  const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
+
+  // [req-2.2]: Clicking the same item again cancels the selection.
+  function handleSelect(index: number) {
+    setSelectedIndex((current) => current === index ? null : index);
+  }
+
+  // [req-2.2]: Clear selection only when selling the selected item.
+  function handleSell(index: number) {
+    if (selectedIndex === index) {
+      setSelectedIndex(null);
+    }
+
+    onSell(index);
+  }
+
   return (
     <section className="rounded-lg border border-panel-edge bg-panel p-4">
       <h2 className="font-display text-xl font-bold">🎒 Backpack</h2>
@@ -30,19 +49,32 @@ export function Backpack({ backpack, onSell }: BackpackProps) {
               aria-label={item ? item.name : `Empty slot ${index + 1}`}
               className={[
                 "flex aspect-square flex-col items-center justify-center gap-1 rounded-md border-2 p-1",
-                item ? "cursor-help border-gold/40 bg-ink/40" : "border-dashed border-panel-edge",
+                // [req-2.2]: Highlight the selected slot so the player can see the selection.
+                selectedIndex === index
+                  ? "border-gold bg-gold/20"
+                  : item
+                    ? "border-gold/40 bg-ink/40"
+                    : "border-dashed border-panel-edge",
               ].join(" ")}
             >
               {item && (
                 <>
-                  <span className="text-3xl leading-none sm:text-4xl" aria-hidden>
-                    {item.icon}
-                  </span>
-                  <span className="text-center text-xs leading-tight">{item.name}</span>
+                  {/* [req-2.2]: Clicking the item selects or deselects its slot. */}
+                  <button
+                    type="button"
+                    onClick={() => handleSelect(index)}
+                    aria-pressed={selectedIndex === index}
+                    className="flex flex-col items-center gap-1"
+                  >
+                    <span className="text-3xl leading-none sm:text-4xl" aria-hidden>
+                      {item.icon}
+                    </span>
+                    <span className="text-center text-xs leading-tight">{item.name}</span>
+                  </button>
                   {/* [req-1.4]: Sell only the item in the selected slot. */}
                   <button
                     type="button"
-                    onClick={() => onSell(index)}
+                    onClick={() => handleSell(index)}
                     className="rounded-md bg-gold px-2 py-1 text-xs font-bold text-ink hover:brightness-110"
                   >
                     Sell for {sellPrice} gold
