@@ -157,39 +157,98 @@ describe("Shop phase guard [req-1.4]", () => {
 });
 
 describe("Backpack phase guard [req-2.3]", () => {
+
   // [req-2.3]: Test moving an item during the shop phase.
-  // Why: Backpack rearrangement must work through updateRun().
-  // Expected: The item moves and the game remains in the shop phase.
+  // Why: Backpack arrangement must work through updateRun().
+  // Expected: The item moves, the phase stays "shop" and the original game remains unchanged.
   it("allows moving items during shop phase", () => {
+
+    // ARRANGE: Create a game in the shop phase.
     const game = newGame(123);
+
+    // Place an item in the first backpack slot.
     const item = { uid: "item-1", itemId: "pot-lid" };
     game.run.backpack[0] = item;
 
+    // ACT: Move the item from slot 0 to slot 2 through updateRun().
     const result = updateRun(game, (run) => moveBackpackItem(run, 0, 2));
 
+    // ASSERT: A successful move must create a new GameState.
     expect(result).not.toBe(game);
+
+    // The source slot becomes empty and the target contains the item.
     expect(result.run.backpack[0]).toBe(null);
     expect(result.run.backpack[2]).toEqual(item);
+
+    // Moving an item must not change the game phase.
     expect(result.phase).toBe("shop");
+
+    // The original backpack must remain unchanged.
     expect(game.run.backpack[0]).toEqual(item);
     expect(game.run.backpack[2]).toBe(null);
   });
 
-  // [req-2.3]: Test moving outside the shop phase.
-  // Why: Searching, battle and finished must prevent backpack changes.
-  // Expected: The original GameState is returned unchanged.
+  // [req-2.3]: Test moving items outside the shop phase.
+  // Why: Backpack changes must be blocked during searching, battle and finished.
+  // Expected: Every blocked move returns the original GameState unchanged.
   it.each<Phase>(["searching", "battle", "finished"])(
     "blocks backpack moves during %s phase",
     (phase) => {
+
+      // ARRANGE: Create a game and set the phase being tested.
       const game = newGame(123);
       game.phase = phase;
-      game.run.backpack[0] = { uid: "item-1", itemId: "pot-lid" };
 
+      // Add an item that could otherwise be moved.
+      game.run.backpack[0] = {
+        uid: "item-1",
+        itemId: "pot-lid"
+      };
+
+      // ACT: Attempt moving the item outside the shop phase.
       const result = updateRun(game, (run) => moveBackpackItem(run, 0, 2));
 
+      // ASSERT: The original GameState must be returned.
       expect(result).toBe(game);
+
+      // The item must remain in its original slot.
       expect(result.run.backpack[0]?.uid).toBe("item-1");
       expect(result.run.backpack[2]).toBe(null);
     }
   );
+
+  // [req-2.5]: Test that blocked backpack actions are never executed.
+  // Why: updateRun() must stop invalid actions before calling moveBackpackItem().
+  // Expected: The callback is not called and the GameState remains unchanged.
+  it("does not execute backpack moves outside shop phase", () => {
+
+    // ARRANGE: Create a game in the searching phase.
+    const game = newGame(123);
+    game.phase = "searching";
+
+    // Place an item in the first backpack slot.
+    game.run.backpack[0] = {
+      uid: "item-1",
+      itemId: "pot-lid"
+    };
+
+    // Track whether the move callback gets executed.
+    let actionCalled = false;
+
+    // ACT: Attempt a move through updateRun().
+    const result = updateRun(game, (run) => {
+      actionCalled = true;
+      return moveBackpackItem(run, 0, 2);
+    });
+
+    // ASSERT: The phase guard must prevent the callback from running.
+    expect(actionCalled).toBe(false);
+
+    // The original GameState must be returned.
+    expect(result).toBe(game);
+
+    // The backpack must remain unchanged.
+    expect(result.run.backpack[0]?.uid).toBe("item-1");
+    expect(result.run.backpack[2]).toBe(null);
+  });
 });
