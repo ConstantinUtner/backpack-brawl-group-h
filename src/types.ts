@@ -124,10 +124,20 @@ export interface BattleReplay {
   frame: number;
 }
 
+// [req-5.2]: Identify each matchmaking attempt and its round
+// so outdated API responses can be rejected.
+export interface ActiveSearch {
+  searchId: string;
+  round: number;
+}
+
 /** Everything the UI needs: the run plus where in the round loop we are. */
 export interface GameState {
   phase: Phase;
   run: RunState;
+  // [req-5.2]: Store the currently active matchmaking attempt.
+  // Null means that no search is running.
+  activeSearch: ActiveSearch | null;
   /** Set while `phase === "battle"`. */
   battle: BattleReplay | null;
   /** Last opponent-search error, shown in the shop. */

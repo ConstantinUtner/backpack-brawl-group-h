@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { newGame, updateRun, fightBlocker, startSearch, searchFailed, startBattle } from "./game";
+import { newGame, updateRun, fightBlocker, startSearch, searchFailed, startBattle, advanceReplay } from "./game";
 import { buyItem, sellItem, rerollShop, moveBackpackItem } from "./run";
-import type { Phase, Opponent } from "./types";
+import type { ActiveSearch, Phase, Opponent } from "./types";
 
 describe("Shop phase guard [req-1.4]", () => {
 
@@ -257,8 +257,8 @@ describe("Matchmaking phase guard [req-5.1]", () => {
 
   // [req-5.1]: Test starting a valid opponent search.
   // Why: Players with at least one item must be able to search.
-  // Expected: The phase changes to searching and the old
-  // error is cleared without changing the run.
+  // Expected: The phase changes to searching, the search is stored
+  // and the old error is cleared without changing the run.
   it("starts a valid opponent search", () => {
 
     // ARRANGE: Create a game in the shop phase.
@@ -273,14 +273,23 @@ describe("Matchmaking phase guard [req-5.1]", () => {
     // Simulate an error from a previous search.
     game.error = "Previous search failed";
 
+    // [req-5.2]: Create a deterministic search identity.
+    const search: ActiveSearch = {
+      searchId: "search-1",
+      round: game.run.round
+    };
+
     // ACT: Start the opponent search.
-    const result = startSearch(game);
+    const result = startSearch(game, search);
 
     // ASSERT: A successful search creates a new GameState.
     expect(result).not.toBe(game);
 
     // The game must enter the searching phase.
     expect(result.phase).toBe("searching");
+
+    // [req-5.2]: The active search must be stored.
+    expect(result.activeSearch).toEqual(search);
 
     // Previous errors must be cleared.
     expect(result.error).toBe(null);
@@ -291,6 +300,7 @@ describe("Matchmaking phase guard [req-5.1]", () => {
     // The original GameState must not be mutated.
     expect(game.phase).toBe("shop");
     expect(game.error).toBe("Previous search failed");
+    expect(game.activeSearch).toBe(null);
   });
 
   // [req-5.1]: Test matchmaking with an empty backpack.
@@ -301,9 +311,12 @@ describe("Matchmaking phase guard [req-5.1]", () => {
     // ARRANGE: Create a game with an empty backpack.
     const game = newGame(123);
 
+    // [req-5.2]: Create a deterministic search identity for this round.
+    const search: ActiveSearch = { searchId: "search-1", round: game.run.round };
+
     // ACT: Check the blocker and attempt to start a search.
     const blocker = fightBlocker(game);
-    const result = startSearch(game);
+    const result = startSearch(game, search);
 
     // ASSERT: The player must receive an understandable reason.
     expect(blocker).toBe("Buy at least one item first");
@@ -317,7 +330,7 @@ describe("Matchmaking phase guard [req-5.1]", () => {
 
   // [req-5.1]: Test starting another search while searching.
   // Why: Only one search may be active at a time.
-  // Expected: The second search leaves the GameState unchanged.
+  // Expected: The second search leaves the first search unchanged.
   it("blocks a second opponent search", () => {
 
     // ARRANGE: Create a game with one item.
@@ -328,21 +341,35 @@ describe("Matchmaking phase guard [req-5.1]", () => {
       itemId: "pot-lid"
     };
 
-    // Start the first search.
-    const searching = startSearch(game);
+    // [req-5.2]: Create two different searches for the same round.
+    const searchA: ActiveSearch = {
+      searchId: "search-A",
+      round: game.run.round
+    };
 
-    // ACT: Attempt to start another search.
+    const searchB: ActiveSearch = {
+      searchId: "search-B",
+      round: game.run.round
+    };
+
+    // Start the first search.
+    const searching = startSearch(game, searchA);
+
+    // ACT: Attempt to start a second search.
     const blocker = fightBlocker(searching);
-    const result = startSearch(searching);
+    const result = startSearch(searching, searchB);
 
     // ASSERT: A running search must have a blocker.
     expect(blocker).toBe("Opponent search already running");
 
-    // The second search must not create a new GameState.
+    // The second search must be rejected.
     expect(result).toBe(searching);
 
-    // The first search must remain active.
+    // The phase must remain searching.
     expect(result.phase).toBe("searching");
+
+    // The first search must remain active.
+    expect(result.activeSearch).toEqual(searchA);
   });
 
   // [req-5.1]: Test matchmaking outside the shop phase.
@@ -362,9 +389,12 @@ describe("Matchmaking phase guard [req-5.1]", () => {
         itemId: "pot-lid"
       };
 
+      // [req-5.2]: Create a deterministic search identity for this round.
+      const search: ActiveSearch = { searchId: "search-1", round: game.run.round };
+
       // ACT: Attempt to start an opponent search.
       const blocker = fightBlocker(game);
-      const result = startSearch(game);
+      const result = startSearch(game, search);
 
       // ASSERT: The phase must prevent searching.
       expect(blocker).toBe(
@@ -381,8 +411,8 @@ describe("Matchmaking phase guard [req-5.1]", () => {
 
   // [req-5.1]: Test recovery from a failed opponent search.
   // Why: API failures must never leave the game stuck.
-  // Expected: The player returns to the shop with an error
-  // while the run remains unchanged.
+  // Expected: The player returns to the shop, the active search
+  // is cleared and the run remains unchanged.
   it("returns to the shop after a search failure", () => {
 
     // ARRANGE: Create a game with one item.
@@ -393,13 +423,18 @@ describe("Matchmaking phase guard [req-5.1]", () => {
       itemId: "pot-lid"
     };
 
-    // Start an opponent search.
-    const searching = startSearch(game);
+    // Create and start a search.
+    const search: ActiveSearch = {
+      searchId: "search-1",
+      round: game.run.round
+    };
+
+    const searching = startSearch(game, search);
 
     const error = "Opponent API unavailable";
 
-    // ACT: Simulate an API failure.
-    const result = searchFailed(searching, error);
+    // ACT: Simulate a failure of the current search.
+    const result = searchFailed(searching, search, error);
 
     // ASSERT: The failure creates a new GameState.
     expect(result).not.toBe(searching);
@@ -410,15 +445,19 @@ describe("Matchmaking phase guard [req-5.1]", () => {
     // The error message must be stored.
     expect(result.error).toBe(error);
 
+    // [req-5.2]: The failed search must be cleared.
+    expect(result.activeSearch).toBe(null);
+
     // The complete run must remain unchanged.
     expect(result.run).toBe(searching.run);
 
     // No battle must have been started.
     expect(result.battle).toBe(null);
 
-    // The original GameState must not be mutated.
+    // The original GameState must remain unchanged.
     expect(searching.phase).toBe("searching");
     expect(searching.error).toBe(null);
+    expect(searching.activeSearch).toEqual(search);
   });
 
   // [req-5.1]: Test retrying a failed opponent search.
@@ -434,16 +473,23 @@ describe("Matchmaking phase guard [req-5.1]", () => {
       itemId: "pot-lid"
     };
 
+    // [req-5.2]: Create a deterministic search identity for this round.
+    const search: ActiveSearch = { searchId: "search-1", round: game.run.round };
+
     // Start a search and simulate a failure.
-    const searching = startSearch(game);
+    const searching = startSearch(game, search);
 
     const failed = searchFailed(
       searching,
+      search,
       "Opponent API unavailable"
     );
 
+    // [req-5.2]: Assign the retry a new identity for the same round.
+    const retry: ActiveSearch = { searchId: "search-2", round: search.round };
+
     // ACT: Retry the opponent search.
-    const result = startSearch(failed);
+    const result = startSearch(failed, retry);
 
     // ASSERT: A new search must be allowed.
     expect(result).not.toBe(failed);
@@ -451,6 +497,9 @@ describe("Matchmaking phase guard [req-5.1]", () => {
 
     // The previous error must be cleared.
     expect(result.error).toBe(null);
+
+    // [req-5.2]: The retry must become the active search.
+    expect(result.activeSearch).toEqual(retry);
 
     // Retrying must not change the run.
     expect(result.run).toBe(failed.run);
@@ -467,9 +516,13 @@ describe("Matchmaking phase guard [req-5.1]", () => {
       const game = newGame(123);
       game.phase = phase;
 
+      // [req-5.2]: Create a deterministic search identity for this round.
+      const search: ActiveSearch = { searchId: "search-1", round: game.run.round };
+
       // ACT: Simulate an unexpected search failure.
       const result = searchFailed(
         game,
+        search,
         "Unexpected API error"
       );
 
@@ -496,8 +549,11 @@ describe("Matchmaking phase guard [req-5.1]", () => {
       itemId: "pot-lid"
     };
 
+    // [req-5.2]: Create a deterministic search identity for this round.
+    const search: ActiveSearch = { searchId: "search-1", round: game.run.round };
+
     // Start an opponent search.
-    const searching = startSearch(game);
+    const searching = startSearch(game, search);
 
     // Create a deterministic opponent for the test.
     const opponent: Opponent = {
@@ -510,7 +566,7 @@ describe("Matchmaking phase guard [req-5.1]", () => {
     };
 
     // ACT: Start the battle with the received opponent.
-    const result = startBattle(searching, opponent);
+    const result = startBattle(searching, search, opponent);
 
     // ASSERT: A successful response creates a new GameState.
     expect(result).not.toBe(searching);
@@ -523,6 +579,9 @@ describe("Matchmaking phase guard [req-5.1]", () => {
 
     // The replay must start at the first frame.
     expect(result.battle?.frame).toBe(0);
+
+    // [req-5.2]: The successful search must be cleared.
+    expect(result.activeSearch).toBe(null);
 
     // The run must not be scored yet.
     expect(result.run).toBe(searching.run);
@@ -559,8 +618,11 @@ describe("Matchmaking phase guard [req-5.1]", () => {
         items: ["pot-lid"]
       };
 
+      // [req-5.2]: Create a deterministic search identity for this round.
+      const search: ActiveSearch = { searchId: "search-1", round: game.run.round };
+
       // ACT: Attempt to start a battle.
-      const result = startBattle(game, opponent);
+      const result = startBattle(game, search, opponent);
 
       // ASSERT: The invalid transition must be rejected.
       expect(result).toBe(game);
@@ -569,4 +631,409 @@ describe("Matchmaking phase guard [req-5.1]", () => {
       expect(result.phase).toBe(phase);
     }
   );
+});
+
+describe("Matchmaking response validation [req-5.2]", () => {
+
+  // [req-5.2]: Test the initial matchmaking state.
+  // Why: A new game must not contain an active search.
+  // Expected: The game starts in the shop with activeSearch set to null.
+  it("starts a new game without an active search", () => {
+
+    // ARRANGE: Define a deterministic seed.
+    const seed = 123;
+
+    // ACT: Create a new game.
+    const game = newGame(seed);
+
+    // ASSERT: The game must start in the shop.
+    expect(game.phase).toBe("shop");
+
+    // No matchmaking attempt must be active.
+    expect(game.activeSearch).toBe(null);
+  });
+
+  // [req-5.2]: Test starting a search for an outdated round.
+  // Why: Matchmaking must only start for the current round.
+  // Expected: The original GameState remains unchanged.
+  it("rejects a search for the wrong round", () => {
+
+    // ARRANGE: Create a game with one item.
+    const game = newGame(123);
+
+    game.run.backpack[0] = {
+      uid: "item-1",
+      itemId: "pot-lid"
+    };
+
+    // Create a search for a different round.
+    const search: ActiveSearch = {
+      searchId: "search-1",
+      round: game.run.round + 1
+    };
+
+    // ACT: Attempt to start the invalid search.
+    const result = startSearch(game, search);
+
+    // ASSERT: The original GameState must be returned.
+    expect(result).toBe(game);
+
+    // The game must remain in the shop.
+    expect(result.phase).toBe("shop");
+
+    // No search must have been stored.
+    expect(result.activeSearch).toBe(null);
+  });
+
+  // [req-5.2]: Test a late response from a previous search.
+  // Why: An outdated response must not start a battle
+  // during a newer search for the same round.
+  // Expected: The newer search remains active.
+  it("ignores a response from an outdated search", () => {
+
+    // ARRANGE: Create a game with one item.
+    const game = newGame(123);
+
+    game.run.backpack[0] = {
+      uid: "item-1",
+      itemId: "pot-lid"
+    };
+
+    // Create two searches for the same round.
+    const searchA: ActiveSearch = {
+      searchId: "search-A",
+      round: game.run.round
+    };
+
+    const searchB: ActiveSearch = {
+      searchId: "search-B",
+      round: game.run.round
+    };
+
+    // Start search A.
+    const searchingA = startSearch(game, searchA);
+
+    // Simulate a timeout of search A.
+    const failed = searchFailed(
+      searchingA,
+      searchA,
+      "Search timed out"
+    );
+
+    // Start search B for the same round.
+    const searchingB = startSearch(failed, searchB);
+
+    // Create an opponent from the outdated response.
+    const opponent: Opponent = {
+      id: "test-opponent",
+      name: "Test Opponent",
+      icon: "",
+      hp: 40,
+      round: game.run.round,
+      items: ["pot-lid"]
+    };
+
+    // ACT: Process the late response from search A.
+    const result = startBattle(searchingB, searchA, opponent);
+
+    // ASSERT: The outdated response must be ignored.
+    expect(result).toBe(searchingB);
+
+    // The newer search must remain active.
+    expect(result.phase).toBe("searching");
+    expect(result.activeSearch).toEqual(searchB);
+
+    // No battle must have been started.
+    expect(result.battle).toBe(null);
+
+    // The run must remain unchanged.
+    expect(result.run).toBe(searchingB.run);
+  });
+
+  // [req-5.2]: Test a late error from a previous search.
+  // Why: An outdated failure must not interrupt a newer search.
+  // Expected: The newer search remains active without an error.
+  it("ignores a failure from an outdated search", () => {
+
+    // ARRANGE: Create a game with one item.
+    const game = newGame(123);
+
+    game.run.backpack[0] = {
+      uid: "item-1",
+      itemId: "pot-lid"
+    };
+
+    // Create two different searches for the same round.
+    const searchA: ActiveSearch = {
+      searchId: "search-A",
+      round: game.run.round
+    };
+
+    const searchB: ActiveSearch = {
+      searchId: "search-B",
+      round: game.run.round
+    };
+
+    // Start and end the first search.
+    const searchingA = startSearch(game, searchA);
+
+    const failed = searchFailed(
+      searchingA,
+      searchA,
+      "Search timed out"
+    );
+
+    // Start the second search.
+    const searchingB = startSearch(failed, searchB);
+
+    // ACT: Process another late error from search A.
+    const result = searchFailed(
+      searchingB,
+      searchA,
+      "Late API error"
+    );
+
+    // ASSERT: The outdated error must be ignored.
+    expect(result).toBe(searchingB);
+
+    // The newer search must remain active.
+    expect(result.phase).toBe("searching");
+    expect(result.activeSearch).toEqual(searchB);
+
+    // No outdated error message must be displayed.
+    expect(result.error).toBe(null);
+  });
+
+  // [req-5.2]: Test an opponent from the wrong round.
+  // Why: A valid search must not start a battle against
+  // an opponent belonging to another round.
+  // Expected: No battle is created and GameState remains unchanged.
+  it("rejects an opponent from the wrong round", () => {
+
+    // ARRANGE: Create a game with one item.
+    const game = newGame(123);
+
+    game.run.backpack[0] = {
+      uid: "item-1",
+      itemId: "pot-lid"
+    };
+
+    // Start a valid search for the current round.
+    const search: ActiveSearch = {
+      searchId: "search-1",
+      round: game.run.round
+    };
+
+    const searching = startSearch(game, search);
+
+    // Create an opponent for a different round.
+    const opponent: Opponent = {
+      id: "test-opponent",
+      name: "Test Opponent",
+      icon: "",
+      hp: 40,
+      round: game.run.round + 1,
+      items: ["pot-lid"]
+    };
+
+    // ACT: Attempt to start a battle with the invalid opponent.
+    const result = startBattle(searching, search, opponent);
+
+    // ASSERT: The invalid opponent must be rejected.
+    expect(result).toBe(searching);
+
+    // No battle must have been started.
+    expect(result.battle).toBe(null);
+
+    // The active search must remain unchanged.
+    expect(result.activeSearch).toEqual(search);
+  });
+
+  // [req-5.2]: Test a response with an outdated search round.
+  // Why: Matching search IDs alone must not bypass round validation.
+  // Expected: The response is ignored and no battle is started.
+  it("ignores responses with an outdated search round", () => {
+
+    // ARRANGE: Create a game with one item.
+    const game = newGame(123);
+
+    game.run.backpack[0] = {
+      uid: "item-1",
+      itemId: "pot-lid"
+    };
+
+    // Start a valid search for the current round.
+    const search: ActiveSearch = {
+      searchId: "search-1",
+      round: game.run.round
+    };
+
+    const searching = startSearch(game, search);
+
+    // Create response metadata with the same ID but a wrong round.
+    const outdatedSearch: ActiveSearch = {
+      searchId: search.searchId,
+      round: search.round + 1
+    };
+
+    // Create an opponent for the actual current round.
+    const opponent: Opponent = {
+      id: "test-opponent",
+      name: "Test Opponent",
+      icon: "",
+      hp: 40,
+      round: game.run.round,
+      items: ["pot-lid"]
+    };
+
+    // ACT: Process a response with invalid search metadata.
+    const result = startBattle(
+      searching,
+      outdatedSearch,
+      opponent
+    );
+
+    // ASSERT: Matching search IDs must not be sufficient.
+    expect(result).toBe(searching);
+
+    // The current search must remain active.
+    expect(result.activeSearch).toEqual(search);
+
+    // No battle must have been started.
+    expect(result.battle).toBe(null);
+  });
+
+  // [req-5.2]: Test processing the same response twice.
+  // Why: Duplicate responses must not restart an existing battle.
+  // Expected: The battle and its current replay frame remain unchanged.
+  it("ignores a duplicate response during battle", () => {
+
+    // ARRANGE: Create a game with one item.
+    const game = newGame(123);
+
+    game.run.backpack[0] = {
+      uid: "item-1",
+      itemId: "pot-lid"
+    };
+
+    // Create and start an opponent search.
+    const search: ActiveSearch = {
+      searchId: "search-1",
+      round: game.run.round
+    };
+
+    const searching = startSearch(game, search);
+
+    // Create a deterministic opponent.
+    const opponent: Opponent = {
+      id: "test-opponent",
+      name: "Test Opponent",
+      icon: "",
+      hp: 40,
+      round: game.run.round,
+      items: ["pot-lid"]
+    };
+
+    // Accept the first response and start the battle.
+    const battling = startBattle(searching, search, opponent);
+
+    // Advance the battle replay by one frame.
+    const advanced = advanceReplay(battling);
+
+    // Verify that the replay has actually advanced.
+    expect(advanced.battle?.frame).toBe(1);
+
+    // ACT: Process the same response again.
+    const result = startBattle(advanced, search, opponent);
+
+    // ASSERT: The duplicate response must be ignored.
+    expect(result).toBe(advanced);
+
+    // The existing battle must remain unchanged.
+    expect(result.battle).toBe(advanced.battle);
+
+    // The replay must not restart at frame zero.
+    expect(result.battle?.frame).toBe(1);
+
+    // No search must remain active.
+    expect(result.activeSearch).toBe(null);
+
+    // The run must remain unchanged.
+    expect(result.run).toBe(advanced.run);
+  });
+
+  // [req-5.2]: Test a valid response after retrying matchmaking.
+  // Why: Rejecting outdated responses must not block valid new searches.
+  // Expected: Only the response of the current search starts a battle.
+  it("accepts a valid response after retrying", () => {
+
+    // ARRANGE: Create a game with one item.
+    const game = newGame(123);
+
+    game.run.backpack[0] = {
+      uid: "item-1",
+      itemId: "pot-lid"
+    };
+
+    // Create two searches for the same round.
+    const searchA: ActiveSearch = {
+      searchId: "search-A",
+      round: game.run.round
+    };
+
+    const searchB: ActiveSearch = {
+      searchId: "search-B",
+      round: game.run.round
+    };
+
+    // Start and fail the first search.
+    const searchingA = startSearch(game, searchA);
+
+    const failed = searchFailed(
+      searchingA,
+      searchA,
+      "Opponent API unavailable"
+    );
+
+    // Retry with a new search identity.
+    const searchingB = startSearch(failed, searchB);
+
+    // Create a valid opponent for the current round.
+    const opponent: Opponent = {
+      id: "test-opponent",
+      name: "Test Opponent",
+      icon: "",
+      hp: 40,
+      round: game.run.round,
+      items: ["pot-lid"]
+    };
+
+    // ACT: Process the valid response from search B.
+    const result = startBattle(searchingB, searchB, opponent);
+
+    // ASSERT: The current response must be accepted.
+    expect(result).not.toBe(searchingB);
+
+    // The game must enter the battle phase.
+    expect(result.phase).toBe("battle");
+
+    // The correct opponent must be used.
+    expect(result.battle?.opponent).toEqual(opponent);
+
+    // The replay must start at frame zero.
+    expect(result.battle?.frame).toBe(0);
+
+    // The successful search must be cleared.
+    expect(result.activeSearch).toBe(null);
+
+    // The previous error must remain cleared.
+    expect(result.error).toBe(null);
+
+    // The run must not be scored yet.
+    expect(result.run).toBe(searchingB.run);
+
+    // The original GameState must remain unchanged.
+    expect(searchingB.phase).toBe("searching");
+    expect(searchingB.activeSearch).toEqual(searchB);
+  });
 });

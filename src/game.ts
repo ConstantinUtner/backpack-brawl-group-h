@@ -5,7 +5,7 @@ import {
 } from "./battle";
 import { applyBattleResult, newRun, runOutcome } from "./run";
 import { itemIdsOf } from "./shop";
-import type { BattleReplay, GameState, Opponent, RunState } from "./types";
+import type { ActiveSearch, BattleReplay, GameState, Opponent, RunState } from "./types";
 
 /**
  * Phase transitions of one run: shop → searching → battle → shop … → finished.
@@ -13,7 +13,16 @@ import type { BattleReplay, GameState, Opponent, RunState } from "./types";
  */
 
 export function newGame(seed: number): GameState {
-  return { phase: "shop", run: newRun(seed), battle: null, error: null };
+  return {
+    phase: "shop",
+    run: newRun(seed),
+
+    // [req-5.2]: A new game starts without an active search.
+    activeSearch: null,
+
+    battle: null,
+    error: null,
+  };
 }
 
 /** Applies a shop/backpack action; only allowed while shopping. */
@@ -40,32 +49,75 @@ export function fightBlocker(game: GameState): string | null {
   return null;
 }
 
-export function startSearch(game: GameState): GameState {
+export function startSearch(
+  game: GameState,
+  search: ActiveSearch,
+): GameState {
   // [req-5.1]: Reject duplicate searches, searches outside
   // the shop phase and searches with an empty backpack.
   if (fightBlocker(game) !== null) return game;
 
-  return { ...game, phase: "searching", error: null };
+  // [req-5.2]: Reject searches for a round that is no longer current.
+  if (search.round !== game.run.round) return game;
+
+  return {
+    ...game,
+    phase: "searching",
+
+    // [req-5.2]: Remember which search is currently active.
+    activeSearch: search,
+
+    error: null,
+  };
 }
 
-export function searchFailed(game: GameState, error: string): GameState {
-  // [req-5.1]: Ignore search failures outside the searching phase.
-  if (game.phase !== "searching") return game;
+// [req-5.2]: Check whether a response belongs to the currently
+// active search and round before applying any state changes.
+function isCurrentSearch(
+  game: GameState,
+  search: ActiveSearch,
+): boolean {
+  return (
+    game.phase === "searching" &&
+    game.activeSearch !== null &&
+    game.activeSearch.searchId === search.searchId &&
+    game.activeSearch.round === search.round &&
+    game.run.round === search.round
+  );
+}
 
-  // [req-5.1]: Restore the shop so the player can recover
-  // from an API failure and retry.
+export function searchFailed(
+  game: GameState,
+  search: ActiveSearch,
+  error: string,
+): GameState {
+  // [req-5.2]: Ignore failures that do not belong
+  // to the currently active search and round.
+  if (!isCurrentSearch(game, search)) return game;
+
   return {
     ...game,
     phase: "shop",
+
+    // [req-5.2]: Clear the completed search so the player can retry.
+    activeSearch: null,
+
     error,
   };
 }
 
 /** Simulates the battle against `opponent` and starts its replay at the first frame. */
-export function startBattle(game: GameState, opponent: Opponent): GameState {
-  // [req-5.1]: Only allow the transition from searching to battle.
-  // Ignore API responses when the game is no longer in the searching phase.
-  if (game.phase !== "searching") return game;
+export function startBattle(
+  game: GameState,
+  search: ActiveSearch,
+  opponent: Opponent,
+): GameState {
+  // [req-5.2]: Ignore responses that do not belong
+  // to the currently active search and round.
+  if (!isCurrentSearch(game, search)) return game;
+
+  // [req-5.2]: Reject opponents that belong to another round.
+  if (opponent.round !== game.run.round) return game;
 
   const player = buildPlayerFighter(game.run.backpack);
   const enemy = buildOpponentFighter(opponent);
@@ -74,6 +126,10 @@ export function startBattle(game: GameState, opponent: Opponent): GameState {
   return {
     ...game,
     phase: "battle",
+
+    // [req-5.2]: Clear the search once its response has been accepted.
+    activeSearch: null,
+
     battle: { opponent, player, enemy, result, frame: 0 },
   };
 }

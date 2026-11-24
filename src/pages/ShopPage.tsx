@@ -14,6 +14,7 @@ import {
 // [req-2.3]: Reuse the tested backpack move and swap function.
 import { buyItem, sellItem, rerollShop, moveBackpackItem } from "../run";
 import { useActiveGame } from "../state/GameContext";
+import type { ActiveSearch } from "../types";
 
 export function ShopPage() {
   const { game, update } = useActiveGame();
@@ -49,14 +50,38 @@ export function ShopPage() {
   // Once the opponent is found the phase becomes "battle" and RequireRoute redirects to the battle page.
   async function handleFindOpponent() {
     if (fightBlocker(game) !== null) return;
-    update(startSearch);
+
+    // [req-5.2]: Create a unique identity for this search
+    // and remember the round for which it was started.
+    const search: ActiveSearch = {
+      searchId: crypto.randomUUID(),
+      round: run.round,
+    };
+
+    // [req-5.2]: Store the search identity in the GameState.
+    update((current) => startSearch(current, search));
+
     try {
-      const opponent = await fetchOpponent(run.round);
-      update((current) => startBattle(current, opponent));
+      // [req-5.2]: Request the opponent for the captured search round.
+      const opponent = await fetchOpponent(search.round);
+
+      // [req-5.2]: If the server returns an opponent for the wrong
+      // round, throw an error so the catch block can end the
+      // search and return the player to the shop.
+      if (opponent.round !== search.round) {
+        throw new Error("Received an opponent for the wrong round.");
+      }
+
+      // [req-5.2]: Start the battle only if the response belongs
+      // to the currently active search. Ignore outdated responses.
+      update((current) => startBattle(current, search, opponent));
     } catch (error) {
       const message =
         error instanceof Error ? error.message : "Opponent search failed.";
-      update((current) => searchFailed(current, message));
+
+      // [req-5.2]: Handle the error only if the failed search
+      // is still active. Ignore errors from outdated searches.
+      update((current) => searchFailed(current, search, message));
     }
   }
 
