@@ -169,9 +169,15 @@ function FighterPanel({ side, icon, fighter, snapshot }: FighterPanelProps) {
         <ActiveItemSetBonus itemIds={fighter.items.map((item) => item.itemId)}/>
 
        {/* REQUIREMENT 3: Adding the current heal amount to the panel */}
+       {healAmount <= 0 ? (
+          <span className="text-muted">
+          <strong className="font-bold">No heal item equipped</strong>
+          </span>
+       ) : (
        <span className="shrink-0 text-sm text-muted rounded border border-gold/40 bg-gold/10 px-2 py-1">
           <strong className="font-bold">Current heal:</strong> {healAmount} HP
        </span>
+       )}
     </article>
   );
 }

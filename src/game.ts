@@ -176,12 +176,8 @@ export function leaveBattle(game: GameState): GameState {
 }
 
 /** URL paths of the app's screens. */
-export const ROUTES = {
-  start: "/",
-  shop: "/shop",
-  battle: "/battle",
-  result: "/result",
-} as const;
+/** REQUIREMENT 7: Give the hall of fame its own ROUTE url (hall-of-fame) */
+export const ROUTES = { start: "/", shop: "/shop", battle: "/battle", result: "/result", hallOfFame: "/hall-of-fame" } as const;
 export type GameRoute = (typeof ROUTES)[keyof typeof ROUTES];
 
 /**
