@@ -5,7 +5,13 @@ import {
 } from "./battle";
 import { applyBattleResult, newRun, runOutcome } from "./run";
 import { itemIdsOf } from "./shop";
-import type { ActiveSearch, BattleReplay, GameState, Opponent, RunState } from "./types";
+import type {
+  ActiveSearch,
+  BattleReplay,
+  GameState,
+  Opponent,
+  RunState,
+} from "./types";
 
 /**
  * Phase transitions of one run: shop → searching → battle → shop … → finished.
@@ -49,10 +55,7 @@ export function fightBlocker(game: GameState): string | null {
   return null;
 }
 
-export function startSearch(
-  game: GameState,
-  search: ActiveSearch,
-): GameState {
+export function startSearch(game: GameState, search: ActiveSearch): GameState {
   // [req-5.1]: Reject duplicate searches, searches outside
   // the shop phase and searches with an empty backpack.
   if (fightBlocker(game) !== null) return game;
@@ -73,10 +76,7 @@ export function startSearch(
 
 // [req-5.2]: Check whether a response belongs to the currently
 // active search and round before applying any state changes.
-function isCurrentSearch(
-  game: GameState,
-  search: ActiveSearch,
-): boolean {
+function isCurrentSearch(game: GameState, search: ActiveSearch): boolean {
   return (
     game.phase === "searching" &&
     game.activeSearch !== null &&
@@ -140,6 +140,9 @@ export const isReplayDone = (battle: BattleReplay) =>
 /** Shows the given frame; reaching the last frame applies the battle result to the run (exactly once). */
 export function showFrame(game: GameState, frame: number): GameState {
   const { battle } = game;
+
+  // [req-5.4]: Stop if no battle is running or the replay is already finished.
+  // This prevents the same battle result from being applied twice.
   if (game.phase !== "battle" || !battle || isReplayDone(battle)) return game;
   const last = battle.result.frames.length - 1;
   const next = {
@@ -147,6 +150,9 @@ export function showFrame(game: GameState, frame: number): GameState {
     frame: Math.min(Math.max(frame, battle.frame), last),
   };
   if (!isReplayDone(next)) return { ...game, battle: next };
+
+  // [req-5.4]: Apply the result and finish the replay
+  // together in a single state update.
   return {
     ...game,
     battle: next,

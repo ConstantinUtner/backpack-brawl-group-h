@@ -1,6 +1,18 @@
 import { describe, expect, it } from "vitest";
-import { newGame, updateRun, fightBlocker, startSearch, searchFailed, startBattle, advanceReplay } from "./game";
-import { buyItem, sellItem, rerollShop, moveBackpackItem } from "./run";
+import {
+  advanceReplay,
+  fightBlocker,
+  isReplayDone,
+  leaveBattle,
+  newGame,
+  searchFailed,
+  showFrame,
+  skipReplay,
+  startBattle,
+  startSearch,
+  updateRun,
+} from "./game";
+import { buyItem, sellItem, rerollShop, moveBackpackItem, GOLD_PER_ROUND } from "./run";
 import type { ActiveSearch, Phase, Opponent } from "./types";
 
 describe("Shop phase guard [req-1.4]", () => {
@@ -1035,5 +1047,154 @@ describe("Matchmaking response validation [req-5.2]", () => {
     // The original GameState must remain unchanged.
     expect(searchingB.phase).toBe("searching");
     expect(searchingB.activeSearch).toEqual(searchB);
+  });
+});
+
+describe("Battle result idempotency [req-5.4]", () => {
+
+  // [req-5.4]: Create a deterministic battle for the tests.
+  function createBattle() {
+    const game = newGame(123);
+
+    game.run.backpack[0] = {
+      uid: "item-1",
+      itemId: "pot-lid"
+    };
+
+    const search: ActiveSearch = {
+      searchId: "search-1",
+      round: game.run.round
+    };
+
+    const opponent: Opponent = {
+      id: "test-opponent",
+      name: "Test Opponent",
+      icon: "",
+      hp: 40,
+      round: game.run.round,
+      items: ["pot-lid"]
+    };
+
+    const searching = startSearch(game, search);
+
+    return startBattle(searching, search, opponent);
+  }
+
+  // [req-5.4]: Test advancing an unfinished replay.
+  // Why: Results must only be applied at the final frame.
+  // Expected: The replay advances without changing the run.
+  it("does not apply the result before the final frame", () => {
+
+    // ARRANGE: Create a battle.
+    const game = createBattle();
+
+    // ACT: Advance the replay.
+    const result = advanceReplay(game);
+
+    // ASSERT: Only the replay frame changes.
+    expect(result.battle?.frame).toBe(1);
+    expect(result.run).toBe(game.run);
+  });
+
+  // [req-5.4]: Test completing a battle replay.
+  // Why: A completed battle must be scored.
+  // Expected: The result is applied and the next round starts.
+  it("applies the battle result when the replay ends", () => {
+
+    // ARRANGE: Create a battle.
+    const game = createBattle();
+
+    const winner = game.battle?.result.winner;
+
+    // ACT: Complete the replay.
+    const result = skipReplay(game);
+
+    // ASSERT: The replay must be completed.
+    expect(result.battle && isReplayDone(result.battle)).toBe(true);
+
+    // The round and gold must increase exactly once.
+    expect(result.run.round).toBe(game.run.round + 1);
+    expect(result.run.gold).toBe(game.run.gold + GOLD_PER_ROUND);
+
+    // The correct battle result must be applied.
+    expect(result.run.wins).toBe(
+      game.run.wins + (winner === "player" ? 1 : 0)
+    );
+
+    expect(result.run.lives).toBe(
+      game.run.lives - (winner === "player" ? 0 : 1)
+    );
+  });
+
+  // [req-5.4]: Test skipping a completed replay again.
+  // Why: A second skip must not apply another result.
+  // Expected: The entire GameState remains unchanged.
+  it("does not apply the result twice when skipping", () => {
+
+    // ARRANGE: Create and complete a battle.
+    const game = createBattle();
+    const completed = skipReplay(game);
+
+    // ACT: Skip the completed replay again.
+    const result = skipReplay(completed);
+
+    // ASSERT: Nothing must change.
+    expect(result).toBe(completed);
+    expect(result.run).toBe(completed.run);
+  });
+
+  // [req-5.4]: Test a replay update after skipping.
+  // Why: A pending timer must not score the battle again.
+  // Expected: The completed GameState remains unchanged.
+  it("ignores a replay advance after skipping", () => {
+
+    // ARRANGE: Create and complete a battle.
+    const game = createBattle();
+    const completed = skipReplay(game);
+
+    // ACT: Simulate a late timer callback.
+    const result = advanceReplay(completed);
+
+    // ASSERT: No additional result is applied.
+    expect(result).toBe(completed);
+    expect(result.run).toBe(completed.run);
+  });
+
+  // [req-5.4]: Test skipping a normally completed replay.
+  // Why: A late skip must not apply the result again.
+  // Expected: The completed GameState remains unchanged.
+  it("ignores skipping after the final frame", () => {
+
+    // ARRANGE: Complete a battle through showFrame().
+    const game = createBattle();
+
+    if (!game.battle) throw new Error("Expected a battle");
+
+    const last = game.battle.result.frames.length - 1;
+    const completed = showFrame(game, last);
+
+    // ACT: Skip the already completed replay.
+    const result = skipReplay(completed);
+
+    // ASSERT: Nothing must change.
+    expect(result).toBe(completed);
+  });
+
+  // [req-5.4]: Test a replay update after leaving the battle.
+  // Why: Old replay callbacks must not change the next round.
+  // Expected: The shop state remains unchanged.
+  it("ignores replay updates after leaving battle", () => {
+
+    // ARRANGE: Complete and leave the battle.
+    const game = createBattle();
+    const completed = skipReplay(game);
+    const shopping = leaveBattle(completed);
+
+    // ACT: Simulate a late replay update.
+    const result = advanceReplay(shopping);
+
+    // ASSERT: The shop and run remain unchanged.
+    expect(result.phase).toBe("shop");
+    expect(result).toBe(shopping);
   });
 });
