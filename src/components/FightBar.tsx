@@ -15,17 +15,23 @@ export function FightBar({ phase, blocker, error, onFight }: FightBarProps) {
       <div aria-live="polite">
         {error ? (
           <p role="alert" className="text-life">
-            ⚠️ {error} Try again.
+            ⚠️ {error}
           </p>
         ) : searching ? (
-          <p className="animate-pulse font-bold text-gold">🔭 Searching the arena for a challenger…</p>
+          <p className="animate-pulse font-bold text-gold">
+            🔭 Searching the arena for a challenger…
+          </p>
         ) : (
-          <p className="text-sm text-muted">Only items in your backpack fight. Ready when you are.</p>
+          <p className="text-sm text-muted">
+            Only items in your backpack fight. Ready when you are.
+          </p>
         )}
       </div>
       <button
         type="button"
         onClick={onFight}
+        // [req-5.1]: Disable the button whenever fightBlocker()
+        // returns a reason why matchmaking is not allowed.
         disabled={blocker !== null}
         title={blocker ?? undefined}
         className="shrink-0 rounded-md bg-life px-4 py-2 font-display font-bold text-parchment hover:brightness-110 disabled:bg-panel-edge disabled:text-muted"
