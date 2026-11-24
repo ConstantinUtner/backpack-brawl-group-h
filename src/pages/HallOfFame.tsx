@@ -30,6 +30,7 @@ export function HallOfFame() {
       <h2 className="text-2xl font-bold">Hall of Fame</h2>
 
       <p className="py-2 text-muted">Victory before defeat, then more wins, then fewer rounds. Ties: earlier submission first.</p>
+      {/** REQUIREMENT 7: The interface shows loading, empty and error states */}
       {loading ? <p role="status">Loading scores…</p> : error ? <div role="alert">
         <p>{error}</p>
 

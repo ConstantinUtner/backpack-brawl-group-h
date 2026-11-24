@@ -72,6 +72,7 @@ export function ScoreForm({
     requestInProgress.current = true;
 
     //Load and disable button - manually currently
+    //TODO: Need to "react" my way into this
     setSubmitting(true);
     setError(null);
 
@@ -122,6 +123,7 @@ export function ScoreForm({
         id="score-name"
         required
         maxLength={30}
+        /** The submission.name is not cleared if disabled or if submit fails. Retry has the same value (part of requirement) */
         value={submission.name}
         //OnChange event for submission, triggers saveSubmission function with target value (name)
         onChange={(event) =>
