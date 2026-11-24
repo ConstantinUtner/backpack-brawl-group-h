@@ -37,6 +37,10 @@ export type ShopOffers = (string | null)[];
 export type Phase = "shop" | "searching" | "battle" | "finished";
 
 export interface RunState {
+  // [req-6.1]: Identify each run uniquely for persistence
+  // and prevent duplicate Hall of Fame submissions.
+  runId: string;
+
   round: number;
   gold: number;
   lives: number;

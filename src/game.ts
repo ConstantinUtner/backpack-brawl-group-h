@@ -15,7 +15,11 @@ import type {
 
 /**
  * Phase transitions of one run: shop → searching → battle → shop … → finished.
- * Every function is pure, so they can be passed straight to `setState`.
+ *
+ * [req-6.1]: Creating a new game is no longer pure because newRun()
+ * generates a random runId. All transitions of an existing game remain
+ * pure: they do not mutate the original state or cause side effects
+ * and can therefore safely be used in React state updaters.
  */
 
 export function newGame(seed: number): GameState {

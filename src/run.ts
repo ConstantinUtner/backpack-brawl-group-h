@@ -12,6 +12,8 @@ export const REROLL_COST = 1;
 export function newRun(seed: number): RunState {
   const roll = rollShop(seed);
   return {
+    // [req-6.1]: Generate a unique ID once when a new run starts.
+    runId: crypto.randomUUID(),
     round: 1,
     gold: START_GOLD,
     lives: START_LIVES,
