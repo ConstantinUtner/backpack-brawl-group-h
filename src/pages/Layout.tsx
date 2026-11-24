@@ -10,6 +10,8 @@ export function Layout() {
             🎒 Backpack <span className="text-gold">Brawl</span>
           </Link>
         </h1>
+        {/** REQUIREMENT 7: Make the ranking reachable without an active run. */}
+        <Link to={ROUTES.hallOfFame} className="text-gold">Hall of Fame</Link>
       </header>
 
       <main className="flex flex-1 flex-col gap-4 py-6">

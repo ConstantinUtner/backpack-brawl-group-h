@@ -1,6 +1,6 @@
 # Backpack Brawl API
 
-The local API is a small Express server in `server/index.js`. It listens on port 4200 (override with the `PORT` environment variable). During Vite development, `/api` is proxied to it, so the frontend uses relative URLs such as `/api/opponents?round=1`. All responses are JSON. The server keeps no state: restarting it changes nothing about the answers.
+The local API is a small Express server in `server/index.js`. It listens on port 4200 (override with the `PORT` environment variable). During Vite development, `/api` is proxied to it, so the frontend uses relative URLs such as `/api/opponents?round=1`. All responses are JSON. The Hall of Fame is stored in a server-side array and is cleared on restart; opponent responses remain deterministic.
 
 ## `GET /api/health`
 
@@ -62,6 +62,52 @@ Every error response has the shape:
 | 503 | `fail=true`, or the server was started with `API_FAIL=true` | `The arena gates are shut. No challenger answered the call.` |
 
 An invalid `round` is reported as 400 even when failure is forced. All responses from this endpoint, errors included, arrive after the configured delay.
+
+/** REQUIREMENT 7: Document score requests, ranking, retry semantics and errors. */
+## `POST /api/hall-of-fame`
+
+Submit a completed run with `Content-Type: application/json`:
+
+```json
+{
+  "runId": "550e8400-e29b-41d4-a716-446655440000",
+  "name": "Constantin",
+  "outcome": "victory",
+  "wins": 5,
+  "rounds": 7,
+  "remainingLives": 1
+}
+```
+
+Success: **201 Created**, with the same object (name trimmed, UUID lowercased). An identical retry returns **200 OK** with the stored entry, without adding a duplicate or changing its ranking position. UUID comparisons are case-insensitive; names are compared after trimming. Unknown fields are ignored.
+
+Validation: UUID format; trimmed name 1–30 characters; integer wins 0–5; integer remainingLives 0–3; integer rounds 1–7 equal to `wins + (3 - remainingLives)`. A victory requires 5 wins and at least 1 life; a defeat requires 0 lives and fewer than 5 wins. Unfinished runs are rejected. These checks detect implausible results, not cheating by a manipulated client.
+
+| Status | Meaning | Example body |
+| --- | --- | --- |
+| 400 | Invalid/implausible data or malformed JSON | `{"error":"rounds must equal wins + lost lives and be between 1 and 7"}` |
+| 409 | Existing runId with different score data | `{"error":"This run was already submitted with different data"}` |
+
+A lost response can safely be retried with the **same payload**, including name and runId. The server may already have stored it. After a server restart the in-memory entries are gone.
+
+## `GET /api/hall-of-fame`
+
+No parameters or active run required. Returns **200 OK** and an array:
+
+```json
+[
+  {
+    "runId": "550e8400-e29b-41d4-a716-446655440000",
+    "name": "Constantin",
+    "outcome": "victory",
+    "wins": 5,
+    "rounds": 7,
+    "remainingLives": 1
+  }
+]
+```
+
+An empty ranking returns `[]`. Ordering: victory before defeat, more wins first, fewer rounds first, then earlier successful submission first. Neither endpoint requires authentication or issues redirects. Unexpected HTTP failures (including 401/500 from infrastructure), non-JSON responses and network failures are shown as errors by the client; Hall-of-Fame redirects are rejected rather than silently followed.
 
 ## Environment variables
 

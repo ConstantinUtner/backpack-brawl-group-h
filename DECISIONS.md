@@ -250,6 +250,32 @@ Die Validierung erkennt unplausible Daten, ist aber kein beweissicherer Schutz v
 - Hall-of-Fame-Seite zeigt **Loading, leere Liste und API-Fehler** getrennt an.
 - Beide Endpunkte samt Beispielen und Fehlercodes in `docs/API.md` dokumentieren.
 
+/** REQUIREMENT 7: Entscheidungen, Gründe und Auswirkungen der Umsetzung festhalten. */
+### Diary Information: Umsetzung B7
+
+#### Important decisions: Was, warum und welche Auswirkungen?
+
+- **Array im Express-Server statt Datenbank:** Die Endpunkte liegen direkt in `server/index.js`. Das erfüllt die geforderte lokale Speicherung ohne zusätzliche Abhängigkeiten. Auswirkung: Ein Server-Neustart löscht Rangliste und Idempotenzhistorie bewusst; dies ist kein dauerhaftes Archiv.
+- **Server entscheidet über Gültigkeit und Rangfolge:** UUID, getrimmter Name, Ganzzahlbereiche, Rundengleichung und endgültiger Ausgang werden vor dem Speichern geprüft. Maximal sieben Runden sind möglich, weil der Run beim fünften Sieg oder dritten Lebensverlust endet. Auswirkung: Unfertige und widersprüchliche Ergebnisse werden mit verständlichem 400-Fehler abgelehnt; manipulierte, aber plausible Ergebnisse lassen sich damit nicht beweissicher verhindern.
+- **Stabile UUID je Run:** `newRun` erstellt einmal `crypto.randomUUID()`. Alle normalen Zustandsänderungen behalten diese ID. Auswirkung: Gleich gesetzte Shop-Seeds erzeugen weiterhin dieselben Angebote, aber unterschiedliche Runs besitzen unterschiedliche Identitäten. B6 muss diese ID beim Speichern und Wiederherstellen unverändert übernehmen.
+- **Idempotenz vor zusätzlicher Speicherung:** Identische normalisierte Daten zur gleichen UUID liefern den bestehenden Eintrag mit 200 zurück; neue Einträge erhalten 201, Änderungen derselben UUID 409. Namen werden getrimmt, UUIDs kleingeschrieben. Auswirkung: Auch eine verlorene Erfolgsantwort führt beim Retry nicht zu einem zweiten Ranglisteneintrag.
+- **Sortierung ohne Zeitstempel:** Kopie des Arrays stabil nach Victory, Wins und Runden sortieren. Die ursprüngliche Einfügereihenfolge löst Gleichstände. Auswirkung: Frühere erfolgreiche Einreichungen gewinnen Gleichstände, Retries verändern die Position nicht und GET verändert nicht das Speicherarray.
+- **Eigenständiges Formular:** `ScoreForm.tsx` wird mit der Run-ID als React-Key in `ResultPage.tsx` eingebettet. Name und bestätigter Status werden unter `backpack-brawl-submission:<runId>` in localStorage gehalten. `submitting` existiert ausschließlich temporär im UI, eine Ref verhindert auch schnelle doppelte Klicks. Auswirkung: Navigation zum Ranking verliert den Formularstatus nicht; ein neuer Run erhält ein neues Formular. Die Wiederherstellung des gesamten Runs nach Refresh bleibt ausdrücklich B6, das aktuell noch nicht implementiert ist.
+- **Name nach erstem Versuch festhalten:** Nach einem Sendeversuch bleibt der Name sichtbar, aber gesperrt. Warum: Bei einem Netzwerkfehler ist unbekannt, ob der Server schon gespeichert hat. Auswirkung: Retry sendet dieselben Daten und vermeidet 409-Konflikte nach verlorenen Antworten. Erst die passende API-Erfolgsantwort setzt `submitted`. Bei blockiertem localStorage funktioniert das Formular weiterhin im Speicher; Persistenz über erneutes Mounten ist dann nicht garantiert, serverseitige Idempotenz bleibt wirksam.
+- **Öffentliche Rangliste und klare Zustände:** `/hall-of-fame` hat keinen Run-Guard und ist im gemeinsamen Header verlinkt. Loading, leere Liste und Fehler werden getrennt dargestellt; Fehler bieten einen Lade-Retry. Auswirkung: Auch ohne gestarteten Run ist die Rangliste nutzbar und ihre Sortierregel direkt sichtbar. Verspätete Antworten nach Navigation werden ignoriert.
+- **HTTP-Antworten bewusst behandeln:** Die neuen API-Funktionen prüfen `response.ok`, lesen Fehlermeldungen und melden nicht lesbare Antworten. Redirects werden abgelehnt. Auswirkung: Auch 301, 401 oder 500 werden nicht als erfolgreicher Submit behandelt. Das Formular prüft zusätzlich, ob die Antwort wirklich denselben Datensatz bestätigt.
+
+#### AI usage
+
+- KI zur Analyse der B7-TODOs, Implementierung von API/Formular/Rangliste und zum Entwurf der Vitest-Tests verwendet.
+- Tests prüfen echte HTTP-Aufrufe gegen einen temporären Express-Port sowie gemockte Fetch-Antworten im Client. Keine neue Testbibliothek erforderlich.
+
+#### Reflections und Verifikation
+
+- Die Schwierigkeit liegt weniger im Formular als im unbekannten Zustand nach einer verlorenen Antwort. Eine feste Run-ID und identische Retries lösen dies einfacher als zusätzliche Client-Anfragen.
+- Die sechs fachlichen B7-TODOs sind umgesetzt und durch REQUIREMENT-7-Kommentare ersetzt. Der unabhängige Balancing-TODO in `battle.ts` bleibt unverändert, um keine Kampfregeln nebenbei anzupassen.
+- Verifikation für diese Anforderung ausschließlich mit `npm run test`; Build, Dev-Server und Lint werden wie angefordert nicht gestartet. Ergebnis: 5 Testdateien mit insgesamt 81 Tests erfolgreich. Die automatisierten Tests ersetzen keine manuelle Prüfung der Darstellung im Browser.
+
 ## 10. Dateiverantwortung und Konfliktvermeidung
 
 | Entwickler A                 | Entwickler B                    |
