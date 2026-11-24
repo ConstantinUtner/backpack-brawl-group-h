@@ -37,6 +37,8 @@ export type ShopOffers = (string | null)[];
 export type Phase = "shop" | "searching" | "battle" | "finished";
 
 export interface RunState {
+  /** REQUIREMENT 7: Identify a run across submission retries. */
+  runId: string;
   round: number;
   gold: number;
   lives: number;
@@ -133,3 +135,19 @@ export interface GameState {
   /** Last opponent-search error, shown in the shop. */
   error: string | null;
 }
+
+/** REQUIREMENT 7: Share the agreed score contract across API and UI. */
+export interface HallOfFameEntry {
+  runId: string;
+  name: string;
+  outcome: "victory" | "defeat";
+  wins: number;
+  rounds: number;
+  remainingLives: number;
+}
+
+/** REQUIREMENT 7: The saved data for the form itself */
+export type Submission = {
+  name: string;
+  status: "not_submitted" | "submitted"
+ }
