@@ -12,8 +12,6 @@ export const REROLL_COST = 1;
 export function newRun(seed: number): RunState {
   const roll = rollShop(seed);
   return {
-    /** REQUIREMENT 7: Create one UUID at run start, never during submission. */
-    runId: crypto.randomUUID(),
     round: 1,
     gold: START_GOLD,
     lives: START_LIVES,
