@@ -1,4 +1,4 @@
-import { useRef, useState, type SubmitEvent } from "react";
+import { useActionState, useState } from "react";
 import { submitScore } from "../api";
 import type { HallOfFameEntry, RunState, Submission } from "../types";
 
@@ -37,12 +37,15 @@ export function ScoreForm({
   //contains persistent form data
   const [submission, setSubmission] = useState(() => readSubmission(storageKey));
   //controls temporary loading display
-  const [submitting, setSubmitting] = useState(false);
+
+  //BUGFIX:The code down below is no longer needed, preventDefault() is also prevented
+
+  /* const [submitting, setSubmitting] = useState(false);
   //contains latest error message
   const [error, setError] = useState<string | null>(null);
  
   //useRef for blocking another submission if immediately supported afterwards
-  const requestInProgress = useRef(false);
+  const requestInProgress = useRef(false); */
 
   //set the submit-status for the submission and save for later checks
   const submitted = submission.status === "submitted";
@@ -59,24 +62,19 @@ export function ScoreForm({
     }
   }
 
-   /** REQUIREMENT 7: Submit once and retain identical data for safe retries. */
-  async function handleSubmit(event: SubmitEvent<HTMLFormElement>) {
-    //Stops the browser from reloading the page
-    event.preventDefault();
+  /** REQUIREMENT 7: Submit once and retain identical data for safe retries. */
+  /** Bugfix: Let React track pending state and return submission errors. */
+  //Error is returned by the action, either error or null
+  //Function submitAction is passed through the action in the form below
+  //Pending is automatically true while React processes the action
+const [error, submitAction, pending] = useActionState<string | null, FormData>(
+  async (_previousError, formData) => {
+    //name ="name" in html code makes the input available through FormData to get the information
+    const name = String(formData.get("name") ?? "").trim();
  
-    const name = submission.name.trim();
+    if (submitted || !name) return null;
  
-    //requestInProgress blocks overlap of submits
-    if (requestInProgress.current || submitted || !name) return;
-
-    requestInProgress.current = true;
-
-    //Load and disable button - manually currently
-    //TODO: Need to "react" my way into this
-    setSubmitting(true);
-    setError(null);
-
-    saveSubmission({...submission, name});
+    saveSubmission({ name, status: "not_submitted" });
  
     try {
       await submitScore({
@@ -87,63 +85,45 @@ export function ScoreForm({
         rounds: run.round,
         remainingLives: run.lives,
       });
- 
+      
       //Saves name for entry with status submitted
       saveSubmission({ name, status: "submitted" });
+      return null;
     } catch (cause) {
-      //sets error (useState) with the message or Submission failed
-      setError(
-        cause instanceof Error ? cause.message : "Submission failed."
-      );
-    } finally {
-      //Now the request is free again
-      requestInProgress.current = false;
-      setSubmitting(false);
+      return cause instanceof Error ? cause.message : "Submission failed.";
     }
-  }
+  },
+  null
+);
 
    /** REQUIREMENT 7: Use labels for each submission state. */
-  let buttonText = "Submit score";
-  if (submitted) buttonText = "Submitted";
-  if (submitting) buttonText = "Submitting…";
- 
-  /** REQUIREMENT 7: Display the name field and submission feedback. */
-  return (
-    <form
-      onSubmit={handleSubmit}
-      className="rounded-xl border border-panel-edge bg-panel p-4"
-    >
-      <h2 className="text-xl font-bold">Submit your score</h2>
- 
-      <label htmlFor="score-name" className="block py-2">
-        Player name (1–30 characters)
-      </label>
+ return (
+  //action connects the submission to React´s async function
+  <form action={submitAction}>
+    <fieldset disabled={pending || submitted}>
+      <label htmlFor="score-name">Player name</label>
  
       <input
         id="score-name"
+        name="name"
         required
         maxLength={30}
         /** The submission.name is not cleared if disabled or if submit fails. Retry has the same value (part of requirement) */
         value={submission.name}
-        //OnChange event for submission, triggers saveSubmission function with target value (name)
+        //OnChange event for submission, triggers saveSubmission function with target value (name) - ... submission for new object because of manipulation
         onChange={(event) =>
           saveSubmission({ ...submission, name: event.target.value })
         }
-        className="rounded border border-panel-edge p-2"
       />
  
-      <button
-        type="submit"
-        disabled={submitting || submitted || !submission.name.trim()}
-        className="ml-2 rounded border border-panel-edge px-4 py-2 disabled:opacity-50"
-      >
-        {/**Only enabled if the name is no submission is running, if the run was already submitted or the name is empty*/}
-        {buttonText}
+      <button type="submit" disabled={!submission.name.trim()}>
+        {pending ? "Submitting…" : submitted ? "Submitted" : "Submit score"}
       </button>
+    </fieldset>
  
-      {submitting && <p role="status">Sending your score…</p>}
-      {submitted && <p role="status">Score submitted successfully.</p>}
-      {error && <p role="alert">{error}</p>}
-    </form>
-  );
+    {pending && <p role="status">Sending your score…</p>}
+    {submitted && <p role="status">Score submitted successfully.</p>}
+    {error && <p role="alert">{error}</p>}
+  </form>
+);
 }

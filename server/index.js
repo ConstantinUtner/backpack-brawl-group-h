@@ -86,7 +86,26 @@ app.post("/api/hall-of-fame", (req, res) => {
     return res.status(409).json({ error: "This run already exists with different data" });
   }
 
-  //TODO: The API validates every submitted run and rejects invalid or implausible data with a clear error.
+  //Refactor: The API validates every submitted run and rejects invalid or implausible data with a clear error.
+  if (typeof entry.name !== "string" || !entry.name || entry.name.length > 30){
+    return reject("Name must contain 1–30 characters");
+  }
+  
+  if (!Number.isInteger(wins) || wins < 0 || wins > 5) {
+    return reject("Wins must be a whole number from 0 to 5");
+  }
+  
+  if (!Number.isInteger(remainingLives) || remainingLives < 0 || remainingLives > 3){
+    return reject("Remaining lives must be a whole number from 0 to 3");
+  }
+
+  if (!Number.isInteger(rounds) || rounds < 1 || rounds > 7) {
+    return reject("Rounds must be a whole number from 1 to 7");
+  }
+  
+  if (rounds !== wins + (3 - remainingLives)) {
+    return reject("Rounds must equal wins + lost lives");
+  }
 
   // Check that the run really ended --> small check.
   const victory = outcome === "victory" && wins === 5 && remainingLives > 0;

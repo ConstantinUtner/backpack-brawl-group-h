@@ -11,7 +11,7 @@ export async function fetchOpponent(round: number): Promise<Opponent> {
 }
 
 /** REQUIREMENT 7: Handle HTTP failures, redirects and unreadable API responses. */
-/** TODO: Change from T to a real element, like Promise<HallOfFameEntry> or so */
+/** Refactoring not needed: Reuse response handling for a single entry or a ranking. */ 
 async function hallOfFameRequest<T>(init?: RequestInit): Promise<T> {
   const response = await fetch("/api/hall-of-fame", { ...init, redirect: "error" });
   
@@ -29,12 +29,12 @@ async function hallOfFameRequest<T>(init?: RequestInit): Promise<T> {
   return body as T;
 }
 
-/** REQUIREMENT 7: Fetch the HallOfFame data to load the list */
-export const fetchHallOfFame = () =>
+/** REQUIREMENT 7: Fetch the HallOfFame data to load the list, return the complete list */
+export const fetchHallOfFame = (): Promise<HallOfFameEntry[]> =>
   hallOfFameRequest<HallOfFameEntry[]>();
 
-/** REQUIREMENT 7: Submit the score as HallOfFameEntry and trigger the function above*/
-export const submitScore = (entry: HallOfFameEntry) => hallOfFameRequest<HallOfFameEntry>({
+/** REQUIREMENT 7: Submit the(one confirmed) score as HallOfFameEntry and trigger the function above*/
+export const submitScore = (entry: HallOfFameEntry): Promise<HallOfFameEntry> => hallOfFameRequest<HallOfFameEntry>({
   method: "POST",
   headers: { "Content-Type": "application/json" },
   body: JSON.stringify(entry),

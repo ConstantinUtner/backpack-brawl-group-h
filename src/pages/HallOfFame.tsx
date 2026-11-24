@@ -4,7 +4,7 @@ import type { HallOfFameEntry } from "../types";
 
 /** REQUIREMENT 7: Show a public ranking with separate loading, empty and error states. */
 export function HallOfFame() {
-  /** TODO: Refactoring, because I use duplicated entries currently, in ScoreForm and in HallOfFame.tsx */
+  /** No refactor needed: The way it was used was changed in ScoreForm by using async functions and keeping track of the state there*/
   const [entries, setEntries] = useState<HallOfFameEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -12,7 +12,7 @@ export function HallOfFame() {
 
   /** REQUIREMENT 7: Ignore stale responses after navigation or retry. */
   useEffect(() => {
-    /** TODO: Make this better, reactive - we act with react. Not the usual way you know, Julia */
+    /** TODO: Make this better, reactive?? Or too much refactoring? */
     let active = true;
     //Get the results and act on it
     fetchHallOfFame().then((result) => {
