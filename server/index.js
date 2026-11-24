@@ -117,4 +117,17 @@ app.post("/api/hall-of-fame", (req, res) => {
   return res.status(201).json(entry);
 });
 
+/** BUGFIX: Returning a readable JSON --> error after testing  */
+app.use((error, _req, res, next) => {
+  // Handle invalid JSON detected by express.json().
+  if (error.type === "entity.parse.failed") {
+    return res.status(400).json({
+      error: "Request body must be valid JSON",
+    });
+  }
+
+  // Let Express handle other errors normally.
+  next(error);
+});
+
 app.listen(port, () => console.log(`Backpack Brawl API listening on http://localhost:${port}`));

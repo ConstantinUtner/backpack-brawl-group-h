@@ -33,8 +33,6 @@ export function ResultPage() {
     <>
       <RunHeader run={game.run} />
       <RunOver run={game.run} outcome={outcome} onNewRun={startNewRun} />
-      
-       {/** REQUIREMENT 7: Create a popup to submit the current run to the existing ScoreForm */}
         <button
         type="button"
         onClick={() => dialogRef.current?.showModal()}
@@ -53,16 +51,18 @@ export function ResultPage() {
         </h2>
  
         {/*Embed the ScoreForm into the dialog window (Popup)*/}
-        <ScoreForm key={game.run.runId} run={game.run} outcome={outcome}/>
- 
-        <button
-          type="button"
-          //Closing the dialog window after click on Close button
-          onClick={() => dialogRef.current?.close()}
-          className="mt-4 rounded border border-panel-edge px-4 py-2"
-        >
-          Close
-        </button>
+        <div className="grid grid-cols-[1fr_auto] items-start gap-x-4">
+          <ScoreForm key={game.run.runId} run={game.run} outcome={outcome}/>
+  
+          <button
+            type="button"
+            //Closing the dialog window after click on Close button
+            onClick={() => dialogRef.current?.close()}
+            className="col-start-2 row-start-3 rounded border border-panel-edge px-4 py-2"
+          >
+            Close
+          </button>
+        </div>
       </dialog>
     </>
   );

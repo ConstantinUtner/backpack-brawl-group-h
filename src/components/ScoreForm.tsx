@@ -100,8 +100,9 @@ const [error, submitAction, pending] = useActionState<string | null, FormData>(
  return (
   //action connects the submission to React´s async function
   <form action={submitAction}>
-    <fieldset disabled={pending || submitted}>
-      <label htmlFor="score-name">Player name</label>
+    <fieldset disabled={pending || submitted}
+    className="col-span-2 mb-3 flex min-w-0 flex-col gap-3">
+      <label htmlFor="score-name" className="font-bold">Player name</label>
  
       <input
         id="score-name"
@@ -114,16 +115,21 @@ const [error, submitAction, pending] = useActionState<string | null, FormData>(
         onChange={(event) =>
           saveSubmission({ ...submission, name: event.target.value })
         }
+        className="w-full rounded border border-panel-edge bg-transparent px-3 py-2"
       />
  
-      <button type="submit" disabled={!submission.name.trim()}>
+      <button type="submit" 
+        disabled={pending || submitted || !submission.name.trim()}
+        className="col-start-1 row-start-3 justify-self-start rounded border border-panel-edge px-4 py-2 disabled:opacity-50">
         {pending ? "Submitting…" : submitted ? "Submitted" : "Submit score"}
       </button>
     </fieldset>
  
-    {pending && <p role="status">Sending your score…</p>}
-    {submitted && <p role="status">Score submitted successfully.</p>}
-    {error && <p role="alert">{error}</p>}
+    <div className="col-span-2 mt-3">
+      {pending && <p role="status">Sending your score…</p>}
+      {submitted && <p role="status">Score submitted successfully.</p>}
+      {error && <p role="alert">{error}</p>}
+    </div>
   </form>
 );
 }
