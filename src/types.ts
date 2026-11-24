@@ -147,3 +147,12 @@ export interface GameState {
   /** Last opponent-search error, shown in the shop. */
   error: string | null;
 }
+
+// [req-6.2]: Define a versioned save format containing the game state
+// and persistent Hall of Fame submission information.
+export interface SaveData {
+  version: number;
+  game: GameState;
+  submittedRunId: string | null;
+  submissionName: string;
+}
