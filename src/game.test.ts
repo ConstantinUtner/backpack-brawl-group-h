@@ -12,7 +12,14 @@ import {
   startSearch,
   updateRun,
 } from "./game";
-import { buyItem, sellItem, rerollShop, moveBackpackItem, GOLD_PER_ROUND } from "./run";
+import {
+  buyItem,
+  sellItem,
+  rerollShop,
+  moveBackpackItem,
+  GOLD_PER_ROUND,
+  WINS_TO_VICTORY,
+} from "./run";
 import type { ActiveSearch, Phase, Opponent } from "./types";
 
 describe("Shop phase guard [req-1.4]", () => {
@@ -1048,6 +1055,101 @@ describe("Matchmaking response validation [req-5.2]", () => {
     expect(searchingB.phase).toBe("searching");
     expect(searchingB.activeSearch).toEqual(searchB);
   });
+
+  // [req-5.5]: Test receiving a response without an active search.
+  // Why: A battle must only start if a search actually exists.
+  // Expected: No battle starts and the GameState stays unchanged.
+  it("rejects a response without an active search", () => {
+
+    // ARRANGE: Set the phase to searching without starting a real search.
+    const game = newGame(123);
+    game.phase = "searching";
+
+    // Add an item so the player could normally start a battle.
+    game.run.backpack[0] = {
+      uid: "item-1",
+      itemId: "pot-lid"
+    };
+
+    // Create search information that is not stored in the GameState.
+    const search: ActiveSearch = {
+      searchId: "search-1",
+      round: game.run.round
+    };
+
+    // Create a valid opponent for the current round.
+    const opponent: Opponent = {
+      id: "test-opponent",
+      name: "Test Opponent",
+      icon: "",
+      hp: 40,
+      round: game.run.round,
+      items: ["pot-lid"]
+    };
+
+    // ACT: Try to start a battle without an active search.
+    const result = startBattle(game, search, opponent);
+
+    // ASSERT: The original GameState must be returned.
+    expect(result).toBe(game);
+
+    // No battle must have been created.
+    expect(result.battle).toBe(null);
+  });
+
+  // [req-5.5]: Test receiving a response for a previous round.
+  // Why: A battle must only start for the current game round.
+  // Expected: The old response is ignored and no battle starts.
+  it("rejects a response when the run round has changed", () => {
+
+    // ARRANGE: Create a game with one item in the backpack.
+    const game = newGame(123);
+
+    game.run.backpack[0] = {
+      uid: "item-1",
+      itemId: "pot-lid"
+    };
+
+    // Create a search for the current round.
+    const search: ActiveSearch = {
+      searchId: "search-1",
+      round: game.run.round
+    };
+
+    // Start the search and store it in the GameState.
+    const searching = startSearch(game, search);
+
+    // Simulate a change of the game round while the search is still active.
+    // The stored search still belongs to the previous round.
+    const changedGame = {
+      ...searching,
+      run: {
+        ...searching.run,
+        round: searching.run.round + 1
+      }
+    };
+
+    // Create an opponent for the original search round,
+    // not for the new game round.
+    const opponent: Opponent = {
+      id: "test-opponent",
+      name: "Test Opponent",
+      icon: "",
+      hp: 40,
+      round: search.round,
+      items: ["pot-lid"]
+    };
+
+    // ACT: Try to start a battle using the response from the previous round.
+    const result = startBattle(changedGame, search, opponent);
+
+    // ASSERT: The GameState must remain unchanged.
+    expect(result).toBe(changedGame);
+
+    // No battle must start for the previous round.
+    expect(result.battle).toBe(null);
+  });
+
 });
 
 describe("Battle result idempotency [req-5.4]", () => {
@@ -1196,5 +1298,75 @@ describe("Battle result idempotency [req-5.4]", () => {
     // ASSERT: The shop and run remain unchanged.
     expect(result.phase).toBe("shop");
     expect(result).toBe(shopping);
+  });
+
+  // [req-5.5]: Test receiving a search error during a battle.
+  // Why: An old search error must not interrupt a running battle.
+  // Expected: The battle continues and no error is stored.
+  it("ignores a search failure during battle", () => {
+
+    // ARRANGE: Create a game where a battle is already running.
+    const game = createBattle();
+
+    // Recreate the search information that was used to start the battle.
+    const search: ActiveSearch = {
+      searchId: "search-1",
+      round: game.run.round
+    };
+
+    // ACT: Simulate an error arriving after the battle has already started.
+    const result = searchFailed(game, search, "Late API error");
+
+    // ASSERT: The original GameState must be returned.
+    expect(result).toBe(game);
+
+    // The player must stay in the battle phase.
+    expect(result.phase).toBe("battle");
+
+    // The running battle must remain unchanged.
+    expect(result.battle).toBe(game.battle);
+
+    // The old error must not be stored.
+    expect(result.error).toBe(null);
+  });
+
+  // [req-5.5]: Test applying the final winning battle result twice.
+  // Why: The last battle must only count once, even if skip is called again.
+  // Expected: The player wins the run without receiving extra wins,
+  // gold or another round.
+  it("does not score the final victory twice", () => {
+
+    // ARRANGE: Create a running battle.
+    const game = createBattle();
+
+    // Make sure a battle exists before accessing it.
+    if (!game.battle) throw new Error("Expected a battle");
+
+    // Give the player four wins so only one more win is needed.
+    game.run.wins = WINS_TO_VICTORY - 1;
+
+    // Set the player as the winner of this battle.
+    game.battle.result.winner = "player";
+
+    // Skip to the last replay frame and apply the final win.
+    const completed = skipReplay(game);
+
+    // ACT: Skip the already finished replay again.
+    const result = skipReplay(completed);
+
+    // ASSERT: The second skip must not change the GameState.
+    expect(result).toBe(completed);
+
+    // The player must have exactly five wins, not six.
+    expect(result.run.wins).toBe(WINS_TO_VICTORY);
+
+    // No new round must start because the player has won the run.
+    expect(result.run.round).toBe(game.run.round);
+
+    // No gold for a new round must be added.
+    expect(result.run.gold).toBe(game.run.gold);
+
+    // Leaving the completed battle must end the run.
+    expect(leaveBattle(result).phase).toBe("finished");
   });
 });
