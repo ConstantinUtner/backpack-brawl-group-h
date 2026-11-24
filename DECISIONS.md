@@ -250,6 +250,30 @@ Die Validierung erkennt unplausible Daten, ist aber kein beweissicherer Schutz v
 - Hall-of-Fame-Seite zeigt **Loading, leere Liste und API-Fehler** getrennt an.
 - Beide Endpunkte samt Beispielen und Fehlercodes in `docs/API.md` dokumentieren.
 
+
+### Diary Information
+#### Important decisions:
+  - I used a express server array instead of the database, like in requirements stated (so stored in local storage)
+  - The validation was done afterwards - I tried to think of UUID, of the name, integer ranges and the final outcome check before saving from the API itself - because like stated in the requirements I need to check not only on the frontend (which I am doing) but also in the server-side
+  - I create a randomUUID per new run - so it stays stable and I check if the UUID is already there, so I cannot resubmit the same run
+  - Sorting is done as mentioned in the Decisions above - first victory, then wins, and rounds. I tried to use a separate Form component for the submission
+  - Changed it from a form submission on the lower element to a popup, because this was something we mentioned during our discussions
+  - The submission status is stored with a :<runId> component under the name of the project and -submission.
+  - We did not want to lock the name,because there could be more than one player named Julia or Constantin - like in the old arcade machines
+  - HTTP handling was refactored using async functions and I check the response as well as the error stakes
+
+#### AI usage
+  - AI was used the most in this requirement - because I simply was stuck during the development.
+    Each try ended in failure, each api call ended in a list of things I had to try. This was not the case in B3 or B4, because the logic was there. It often feels to me, that my head is stuck with the logic behind everything that happens there.. API and me are no friends
+
+  - So it helped me a lot in implementing the components, especially the API endpoints and how to handle, or refactor to the "react way"
+  - The tests are all done by the AI, bugfixing these or refactoring the visuals were done by me
+  - HTML code with tailwindcss was also done by AI - because this is code I simply do not know
+
+#### Reflections
+  The main difficulty was not the form itself or the validations or any specific logic, it was somehow all that surrounded the API server states or responses and what to do with it. I had a lot of TODOs in this one, which I tried to replace as I was coding the requirements one was left unchanged, just because we do not know how or if to tweak the game/cooldowns of the items.
+  Either it is the nights full of coding up until now or I am just tired of API handling - if I had the time to do this day in day out I would be the master and know a lot, but with this limited time and head space, I am just over my head.
+
 ## 10. Dateiverantwortung und Konfliktvermeidung
 
 | Entwickler A                 | Entwickler B                    |

@@ -73,6 +73,7 @@ export const RULES: RuleSection[] = [
       `Knock the enemy out to win. ${STATUS_HELP.timer} If both fall at once, you lose.`,
     ],
   },
+  /** REQUIREMENT 3: Item Effects Ruleset */
   {
     title: "🧪 Item Effects",
     rules: [
@@ -83,6 +84,7 @@ export const RULES: RuleSection[] = [
       `The (🔥)burn effects stack with every activation, but does not ignore block.`
     ],
   },
+  /** REQUIREMENT 4: Item Sets Rules */
   {
     title: "📖 Item Sets",
     rules: [
@@ -91,6 +93,17 @@ export const RULES: RuleSection[] = [
       `The Item Sets are marked with a badge on the top right corner and the active bonuses are shown below the panels.`,
       `🔥 Fire Set items: add +1 burn to the burn stack for each set item in the same category.`,
       `🛡️ Defense Set Items: add +1 block to each set item.`,
+    ],
+  },
+  /** Requirement 7: Hall Of Fame, how it works */
+  {
+    title: "🏅 Hall of Fame",
+    rules: [
+    `After finishing a run, enter your name to submit your score, or close the popup to skip.`,
+    `Victories rank before defeats, then more wins, then fewer rounds. Ties favour earlier submissions.`,
+    `If submission fails, retry without retyping your name.`,
+    `Open the Hall of Fame from the header at any time.`,
+    `Scores are stored temporarily and cleared when the API server restarts.`,
     ],
   },
 ];
