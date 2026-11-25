@@ -172,7 +172,7 @@ Alle Statuswerte und aktiven Set-Boni werden in der Kampfansicht, im Combat Log 
 
 Zu speichern sind der **relevante `GameState`** (Run inklusive Seed, Shop, Backpack und `runId`; Phase; gegebenenfalls vollständiges Battle Replay und Ergebnis) sowie der erfolgreiche Hall-of-Fame-Submit-Status und der vor einem Retry eingegebene Name.
 
-Speicherformat:
+Speicherformat (vereinfachtes Beispiel):
 
 ```
 {
@@ -180,10 +180,12 @@ Speicherformat:
   "game": {
     "phase": "shop",
     "run": {},
+    "activeSearch": null,
     "battle": null,
     "error": null
   },
-  "submittedRunId": null
+  "submittedRunId": null,
+  "submissionName": ""
 }
 ```
 
@@ -191,9 +193,9 @@ Speicherformat:
 | --- | --- |
 | `shop` | Gold, Angebote, Seed, Backpack und Runde exakt wiederherstellen |
 | `searching` | Zurück in denselben Shop; neue Suche gegen denselben Gegner dieser Runde möglich, **kein neuer Shop-Roll** |
-| `battle`, Replay läuft | Gespeicherten Gegner und **dasselbe gespeicherte Kampfergebnis** verwenden; Replay darf bei Frame 0 neu beginnen |
+| `battle`, Replay läuft | Gespeicherten Gegner, Kampfergebnis und aktuellen Replay-Frame wiederherstellen und das Replay an dieser Stelle fortsetzen |
 | `battle`, Replay fertig | Bereits angewendetes Ergebnis anzeigen; **nicht noch einmal werten** |
-| `finished` | Ergebnis und Einreichungsstatus wiederherstellen |
+| `finished` | Ergebnis, eingegebenen Namen und bestätigten Einreichungsstatus wiederherstellen |
 
 
 - Beim Erstellen eines neuen Runs wird ein neuer Spielstand mit neuer `runId` geschrieben.
@@ -201,6 +203,7 @@ Speicherformat:
 - Die Wertung wird **einmal** beim Erreichen des letzten Replay-Frames durchgeführt und zusammen mit dem Replay-Endzustand gespeichert. Ein erneuter Aufruf verändert den Run nicht.
 - Vor Verwendung eines Saves `version`, Phase, Run-Werte, Array-Längen, IDs, Item-IDs und Replay-Konsistenz prüfen. Bei ungültigen Daten Save verwerfen und einen **neuen spielbaren Run anbieten**.
 - Ein Refresh ist kein Weg, ein anderes Kampfergebnis, einen kostenlosen Reroll oder ein Leben zurückzubekommen.
+- Der gemeinsame Footer bietet auf allen Seiten das standardmäßig eingeklappte Panel **Save & Resume Policy**. Es erklärt die automatische Speicherung, das Refresh-Verhalten je Spielphase, den Ersatz des Spielstands bei einem neuen Run und den Umgang mit ungültigen Saves. Die Fortsetzung setzt voraus, dass der Browserspeicher verfügbar ist und der Spielstand im selben Browser noch vorliegt.
 
 ## 9. B7 – Hall of Fame
 
