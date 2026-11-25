@@ -15,11 +15,43 @@ const router = createBrowserRouter([
     path: ROUTES.start,
     element: <Layout />,
     children: [
-      { index: true, element: <StartPage /> },
+      // [req-6.7]: Redirect to the restored game's matching screen
+      // when the application is opened through the start route.
+      {
+        index: true,
+        element: (
+          <RequireRoute route={ROUTES.start}>
+            <StartPage />
+          </RequireRoute>
+        ),
+      },
+
+      /** REQUIREMENT 7: Insert the HallOfFame routing */
       { path: ROUTES.hallOfFame, element: <HallOfFame /> },
-      { path: ROUTES.shop, element: <RequireRoute route={ROUTES.shop}><ShopPage /></RequireRoute> },
-      { path: ROUTES.battle, element: <RequireRoute route={ROUTES.battle}><BattlePage /></RequireRoute> },
-      { path: ROUTES.result, element: <RequireRoute route={ROUTES.result}><ResultPage /></RequireRoute> },
+      {
+        path: ROUTES.shop,
+        element: (
+          <RequireRoute route={ROUTES.shop}>
+            <ShopPage />
+          </RequireRoute>
+        ),
+      },
+      {
+        path: ROUTES.battle,
+        element: (
+          <RequireRoute route={ROUTES.battle}>
+            <BattlePage />
+          </RequireRoute>
+        ),
+      },
+      {
+        path: ROUTES.result,
+        element: (
+          <RequireRoute route={ROUTES.result}>
+            <ResultPage />
+          </RequireRoute>
+        ),
+      },
       { path: "*", element: <Navigate to={ROUTES.start} replace /> },
     ],
   },

@@ -9,18 +9,17 @@ import {
   moveBackpackItem,
   rerollBlocker,
   rerollShop,
-  REROLL_COST
+  REROLL_COST,
+  applyBattleResult,
 } from "./run";
 import { rollShop, SHOP_SIZE } from "./shop";
 
 describe("Buying items [req-1.1]", () => {
-
   // [req-1.1]: Test a successful purchase.
   // Why: Buying must update gold, shop, backpack and nextUid together.
   // Expected: All purchase changes are correct and the original state
   // remains unchanged.
   it("completes a valid purchase fully", () => {
-
     // ARRANGE: Create a new run with a fixed seed.
     const state = newRun(123);
 
@@ -46,7 +45,7 @@ describe("Buying items [req-1.1]", () => {
     // The item must appear in the first free backpack slot.
     expect(result.backpack[0]).toEqual({
       uid: `item-${state.nextUid}`,
-      itemId
+      itemId,
     });
 
     // The UID counter must increase by one.
@@ -63,7 +62,6 @@ describe("Buying items [req-1.1]", () => {
   // Why: The player must never spend gold they do not have.
   // Expected: The purchase is blocked and the entire state stays unchanged.
   it("rejects buying without enough gold", () => {
-
     // ARRANGE: Create a run and remove all available gold.
     const state = newRun(123);
     state.gold = 0;
@@ -85,14 +83,13 @@ describe("Buying items [req-1.1]", () => {
   // Why: An item must never be paid for without entering the backpack.
   // Expected: The complete RunState remains unchanged.
   it("rejects buying when backpack is full", () => {
-
     // ARRANGE: Create a new run.
     const state = newRun(123);
 
     // Fill all six slots with uniquely identified test items.
     state.backpack = state.backpack.map((_, index) => ({
       uid: `item-${index + 1}`,
-      itemId: "pot-lid"
+      itemId: "pot-lid",
     }));
 
     // Give the player enough gold to isolate the backpack rule.
@@ -113,7 +110,6 @@ describe("Buying items [req-1.1]", () => {
   // Why: The same shop position must not be purchased twice.
   // Expected: No additional item is created and the state stays unchanged.
   it("rejects an already sold offer", () => {
-
     // ARRANGE: Mark the first shop offer as sold.
     const state = newRun(123);
     state.shop[0] = null;
@@ -132,7 +128,6 @@ describe("Buying items [req-1.1]", () => {
   // Why: Invalid array positions must never create items.
   // Expected: Every invalid index is rejected without changing the state.
   it("rejects invalid shop indices", () => {
-
     // ARRANGE: Create a run with four shop offers.
     const state = newRun(123);
 
@@ -140,7 +135,6 @@ describe("Buying items [req-1.1]", () => {
     const invalidIndices = [-1, 4, 1.5];
 
     for (const index of invalidIndices) {
-
       // The blocker should report an invalid shop position.
       expect(buyBlocker(state, index)).toBe("Invalid shop offer");
 
@@ -156,14 +150,11 @@ describe("Buying items [req-1.1]", () => {
   // Why: A nearly full backpack must still allow a valid purchase.
   // Expected: The item is placed in the last slot without overwriting others.
   it("buys into the last free backpack slot", () => {
-
     // ARRANGE: Fill the first five backpack slots.
     const state = newRun(123);
 
     state.backpack = state.backpack.map((_, index) =>
-      index === 5
-        ? null
-        : { uid: `item-${index + 1}`, itemId: "pot-lid" }
+      index === 5 ? null : { uid: `item-${index + 1}`, itemId: "pot-lid" },
     );
 
     state.nextUid = 6;
@@ -179,13 +170,11 @@ describe("Buying items [req-1.1]", () => {
     // ASSERT: The new item must occupy the last free slot.
     expect(result.backpack[5]).toEqual({
       uid: "item-6",
-      itemId
+      itemId,
     });
 
     // Previously occupied slots must remain unchanged.
-    expect(result.backpack.slice(0, 5)).toEqual(
-      state.backpack.slice(0, 5)
-    );
+    expect(result.backpack.slice(0, 5)).toEqual(state.backpack.slice(0, 5));
 
     // The purchase must deduct gold and advance the UID counter.
     expect(result.gold).toBe(100 - getItem(itemId).price);
@@ -224,17 +213,18 @@ describe("Buying items [req-1.1]", () => {
     // ASSERT: Both items must exist in separate slots.
     expect(afterSecondBuy.backpack[0]).toEqual({
       uid: "item-1",
-      itemId: firstItemId
+      itemId: firstItemId,
     });
 
     expect(afterSecondBuy.backpack[1]).toEqual({
       uid: "item-2",
-      itemId: secondItemId
+      itemId: secondItemId,
     });
 
     // The two item instances must have different UIDs.
-    expect(afterSecondBuy.backpack[0]?.uid)
-      .not.toBe(afterSecondBuy.backpack[1]?.uid);
+    expect(afterSecondBuy.backpack[0]?.uid).not.toBe(
+      afterSecondBuy.backpack[1]?.uid,
+    );
 
     // Both purchased offers must be marked as sold.
     expect(afterSecondBuy.shop[0]).toBe(null);
@@ -245,14 +235,11 @@ describe("Buying items [req-1.1]", () => {
 
     // The gold must decrease by both item prices.
     expect(afterSecondBuy.gold).toBe(
-      100 -
-      getItem(firstItemId).price -
-      getItem(secondItemId).price
+      100 - getItem(firstItemId).price - getItem(secondItemId).price,
     );
 
     // The original backpack must remain empty.
-    expect(state.backpack.every((slot) => slot === null))
-      .toBe(true);
+    expect(state.backpack.every((slot) => slot === null)).toBe(true);
   });
 
   // [req-1.1]: Test buying with exactly the required amount of gold.
@@ -294,12 +281,10 @@ describe("Buying items [req-1.1]", () => {
 });
 
 describe("Selling items [req-1.2]", () => {
-
   // [req-1.2]: Test selling an item with an odd purchase price.
   // Why: Half the original price must always be rounded down.
   // Expected: A 3-gold item sells for 1 gold.
   it("sells an item for half its price rounded down", () => {
-
     // ARRANGE: Create a run with 5 gold.
     const state = newRun(123);
     state.gold = 5;
@@ -307,7 +292,7 @@ describe("Selling items [req-1.2]", () => {
     // Put an Oak Buckler worth 3 gold into the first slot.
     state.backpack[0] = {
       uid: "item-1",
-      itemId: "oak-buckler"
+      itemId: "oak-buckler",
     };
 
     // ACT: Sell the item from slot 0.
@@ -326,7 +311,7 @@ describe("Selling items [req-1.2]", () => {
     expect(state.gold).toBe(5);
     expect(state.backpack[0]).toEqual({
       uid: "item-1",
-      itemId: "oak-buckler"
+      itemId: "oak-buckler",
     });
   });
 
@@ -334,14 +319,13 @@ describe("Selling items [req-1.2]", () => {
   // Why: Prices must also be correct when no rounding is required.
   // Expected: A 4-gold item sells for exactly 2 gold.
   it("sells an even-priced item correctly", () => {
-
     // ARRANGE: Put a Hunting Bow worth 4 gold into the backpack.
     const state = newRun(123);
     state.gold = 5;
 
     state.backpack[0] = {
       uid: "item-1",
-      itemId: "hunting-bow"
+      itemId: "hunting-bow",
     };
 
     // ACT: Sell the Hunting Bow.
@@ -356,7 +340,6 @@ describe("Selling items [req-1.2]", () => {
   // Why: The player must never receive gold without selling an item.
   // Expected: The sale is rejected and the entire state stays unchanged.
   it("rejects selling an empty slot", () => {
-
     // ARRANGE: A new run starts with an empty backpack.
     const state = newRun(123);
 
@@ -374,7 +357,6 @@ describe("Selling items [req-1.2]", () => {
   // Why: Only the six existing backpack slots may be accessed.
   // Expected: Invalid indices never change the RunState.
   it("rejects invalid backpack indices", () => {
-
     // ARRANGE: Create a new run.
     const state = newRun(123);
 
@@ -382,7 +364,6 @@ describe("Selling items [req-1.2]", () => {
     const invalidIndices = [-1, 6, 1.5];
 
     for (const index of invalidIndices) {
-
       // The blocker must identify the invalid position.
       expect(sellBlocker(state, index)).toBe("Invalid backpack slot");
 
@@ -398,18 +379,17 @@ describe("Selling items [req-1.2]", () => {
   // Why: Selling must remove only the selected item instance.
   // Expected: The other item and the nextUid counter remain unchanged.
   it("removes only the selected item instance", () => {
-
     // ARRANGE: Add two Pot Lids with different UIDs.
     const state = newRun(123);
 
     state.backpack[0] = {
       uid: "item-1",
-      itemId: "pot-lid"
+      itemId: "pot-lid",
     };
 
     state.backpack[1] = {
       uid: "item-2",
-      itemId: "pot-lid"
+      itemId: "pot-lid",
     };
 
     // The next new item must receive UID item-3.
@@ -428,7 +408,7 @@ describe("Selling items [req-1.2]", () => {
     // The second Pot Lid must still exist with the same UID.
     expect(result.backpack[1]).toEqual({
       uid: "item-2",
-      itemId: "pot-lid"
+      itemId: "pot-lid",
     });
 
     // Selling must not change the next available UID.
@@ -452,7 +432,7 @@ describe("Selling items [req-1.2]", () => {
 
     state.backpack[0] = {
       uid: "item-1",
-      itemId: "pot-lid"
+      itemId: "pot-lid",
     };
 
     state.nextUid = 2;
@@ -467,8 +447,7 @@ describe("Selling items [req-1.2]", () => {
     expect(afterFirstSell.backpack[0]).toBe(null);
 
     // The blocker must now identify the empty slot.
-    expect(sellBlocker(afterFirstSell, 0))
-      .toBe("Empty backpack slot");
+    expect(sellBlocker(afterFirstSell, 0)).toBe("Empty backpack slot");
 
     // ACT 2: Try to sell the same slot again.
     const afterSecondSell = sellItem(afterFirstSell, 0);
@@ -485,12 +464,10 @@ describe("Selling items [req-1.2]", () => {
 });
 
 describe("Shop reroll [req-1.3]", () => {
-
   // [req-1.3]: Test a successful shop reroll.
   // Why: A reroll must cost exactly one gold and replace all four offers.
   // Expected: Gold, shop and seed are updated together.
   it("rerolls all offers for one gold", () => {
-
     // ARRANGE: Create a new run with a fixed seed.
     const state = newRun(123);
 
@@ -523,7 +500,6 @@ describe("Shop reroll [req-1.3]", () => {
   // Why: One gold must be sufficient for a valid reroll.
   // Expected: The reroll succeeds and the player has zero gold.
   it("allows rerolling with exactly one gold", () => {
-
     // ARRANGE: Give the player exactly one gold.
     const state = newRun(123);
     state.gold = 1;
@@ -545,7 +521,6 @@ describe("Shop reroll [req-1.3]", () => {
   // Why: The player must not be able to reroll for free.
   // Expected: Gold, offers and seed remain completely unchanged.
   it("rejects rerolling without gold", () => {
-
     // ARRANGE: Create a run with zero gold.
     const state = newRun(123);
     state.gold = 0;
@@ -564,7 +539,6 @@ describe("Shop reroll [req-1.3]", () => {
   // Why: Reroll must replace even previously sold shop positions.
   // Expected: All four positions contain available offers again.
   it("replaces previously sold offers", () => {
-
     // ARRANGE: Mark two shop positions as sold.
     const state = newRun(123);
     state.shop[0] = null;
@@ -584,13 +558,12 @@ describe("Shop reroll [req-1.3]", () => {
   // Why: A shop reroll must never remove or duplicate backpack items.
   // Expected: Backpack, nextUid and round remain unchanged.
   it("preserves backpack and UID counter", () => {
-
     // ARRANGE: Create a run containing one owned item.
     const state = newRun(123);
 
     state.backpack[0] = {
       uid: "item-1",
-      itemId: "pot-lid"
+      itemId: "pot-lid",
     };
 
     state.nextUid = 2;
@@ -615,7 +588,6 @@ describe("Shop reroll [req-1.3]", () => {
   // Why: Each reroll must use the seed produced by the previous one.
   // Expected: Two rerolls cost two gold and follow the correct seed sequence.
   it("uses the updated seed for consecutive rerolls", () => {
-
     // ARRANGE: Create a new run with 10 gold.
     const state = newRun(123);
 
@@ -651,7 +623,7 @@ describe("Shop reroll [req-1.3]", () => {
     // Fill all six backpack slots with unique item instances.
     state.backpack = state.backpack.map((_, index) => ({
       uid: `item-${index + 1}`,
-      itemId: "pot-lid"
+      itemId: "pot-lid",
     }));
 
     // The next available UID must be 7.
@@ -681,12 +653,10 @@ describe("Shop reroll [req-1.3]", () => {
 });
 
 describe("Shop economy integration [req-1.5]", () => {
-
   // [req-1.5]: Test buying, selling and rerolling in sequence.
   // Why: Combined shop actions must preserve valid gold and item state.
   // Expected: Each action changes only the intended values.
   it("keeps the run consistent across shop actions", () => {
-
     // ARRANGE: Create a new run with 10 gold.
     const start = newRun(123);
 
@@ -703,7 +673,7 @@ describe("Shop economy integration [req-1.5]", () => {
     // ASSERT 1: The item must be stored in the backpack.
     expect(afterBuy.backpack[0]).toEqual({
       uid: "item-1",
-      itemId
+      itemId,
     });
 
     // The purchase must deduct the correct price.
@@ -716,9 +686,7 @@ describe("Shop economy integration [req-1.5]", () => {
     expect(afterSell.backpack[0]).toBe(null);
 
     // The sale must return half the price, rounded down.
-    expect(afterSell.gold).toBe(
-      10 - price + Math.floor(price / 2)
-    );
+    expect(afterSell.gold).toBe(10 - price + Math.floor(price / 2));
 
     // The UID counter must not decrease after selling.
     expect(afterSell.nextUid).toBe(2);
@@ -743,7 +711,6 @@ describe("Shop economy integration [req-1.5]", () => {
   // Why: A sold item's UID must never be reused for a new purchase.
   // Expected: The second purchased item receives the next unique UID.
   it("does not reuse item UIDs after selling", () => {
-
     // ARRANGE: Create a run with enough gold for two purchases.
     const state = newRun(123);
     state.gold = 100;
@@ -824,12 +791,10 @@ describe("Shop economy integration [req-1.5]", () => {
 });
 
 describe("Backpack arrangement [req-2.1]", () => {
-
   // [req-2.1]: Test moving an item to an empty slot.
   // Why: Moving must preserve the item and leave unrelated run data unchanged.
   // Expected: The item moves to the target, and the original state stays unchanged.
   it("moves an item to an empty slot", () => {
-
     // ARRANGE: Create a new run with one item in slot 0.
     const state = newRun(123);
     const item = { uid: "item-1", itemId: "pot-lid" };
@@ -844,7 +809,7 @@ describe("Backpack arrangement [req-2.1]", () => {
     // Only the backpack positions must change.
     expect(result).toEqual({
       ...state,
-      backpack: [null, null, item, null, null, null]
+      backpack: [null, null, item, null, null, null],
     });
 
     // The target must contain the same item instance.
@@ -861,7 +826,6 @@ describe("Backpack arrangement [req-2.1]", () => {
   // Why: Swapping must preserve both item instances without modifying the original state.
   // Expected: Both items exchange positions while the original backpack stays unchanged.
   it("swaps two occupied slots", () => {
-
     // ARRANGE: Create a run with two different items.
     const state = newRun(123);
     const first = { uid: "item-1", itemId: "pot-lid" };
@@ -887,7 +851,6 @@ describe("Backpack arrangement [req-2.1]", () => {
   // Why: An empty slot contains no item that can be moved.
   // Expected: The invalid move returns the original RunState.
   it("rejects moving an empty slot", () => {
-
     // ARRANGE: Create a run with an empty backpack.
     const state = newRun(123);
 
@@ -902,7 +865,6 @@ describe("Backpack arrangement [req-2.1]", () => {
   // Why: Moving to the same position must not create an unnecessary state change.
   // Expected: The original RunState is returned unchanged.
   it("rejects moving to the same slot", () => {
-
     // ARRANGE: Create a run with one item in slot 0.
     const state = newRun(123);
     state.backpack[0] = { uid: "item-1", itemId: "pot-lid" };
@@ -918,7 +880,6 @@ describe("Backpack arrangement [req-2.1]", () => {
   // Why: Only integer indices from 0 to 5 are valid backpack positions.
   // Expected: Every invalid move returns the original RunState.
   it("rejects invalid slot indices", () => {
-
     // ARRANGE: Create a run with one item.
     const state = newRun(123);
     state.backpack[0] = { uid: "item-1", itemId: "pot-lid" };
@@ -930,12 +891,11 @@ describe("Backpack arrangement [req-2.1]", () => {
       [1.5, 2],
       [0, -1],
       [6, 0],
-      [0, 1.5]
+      [0, 1.5],
     ];
 
     // ACT & ASSERT: Attempt each invalid move.
     for (const [from, to] of invalidMoves) {
-
       // Invalid positions must never change the RunState.
       expect(moveBackpackItem(state, from, to)).toBe(state);
     }
@@ -945,7 +905,6 @@ describe("Backpack arrangement [req-2.1]", () => {
   // Why: Repeated moves and swaps must not lose or duplicate items.
   // Expected: Both items remain at the correct positions after each action.
   it("preserves items across consecutive moves", () => {
-
     // ARRANGE: Create a run with two different items.
     const state = newRun(123);
     const first = { uid: "item-1", itemId: "pot-lid" };
@@ -962,26 +921,19 @@ describe("Backpack arrangement [req-2.1]", () => {
     const afterSwap = moveBackpackItem(afterMove, 1, 2);
 
     // ASSERT: Both items must be at their expected final positions.
-    expect(afterSwap.backpack).toEqual([
-      null, first, second, null, null, null
-    ]);
+    expect(afterSwap.backpack).toEqual([null, first, second, null, null, null]);
 
     // The intermediate state must remain unchanged after the second move.
-    expect(afterMove.backpack).toEqual([
-      null, second, first, null, null, null
-    ]);
+    expect(afterMove.backpack).toEqual([null, second, first, null, null, null]);
 
     // The original backpack must remain unchanged.
-    expect(state.backpack).toEqual([
-      first, second, null, null, null, null
-    ]);
+    expect(state.backpack).toEqual([first, second, null, null, null, null]);
   });
 
   // [req-2.5]: Test swapping when the backpack is full.
   // Why: Swapping must work without empty slots and preserve all item instances.
   // Expected: Two items exchange positions and all six original UIDs remain.
   it("swaps items when the backpack is full", () => {
-
     // ARRANGE: Create a run with all six backpack slots occupied.
     const state = newRun(123);
 
@@ -1021,7 +973,6 @@ describe("Backpack arrangement [req-2.1]", () => {
   // Why: Arrangement must not modify gold, shop offers or other run properties.
   // Expected: Only the backpack changes and the original RunState stays unchanged.
   it("preserves unrelated run properties", () => {
-
     // ARRANGE: Create a run with one item in slot 0.
     const state = newRun(123);
     state.backpack[0] = { uid: "item-1", itemId: "pot-lid" };
@@ -1038,10 +989,151 @@ describe("Backpack arrangement [req-2.1]", () => {
     // All other RunState properties must remain unchanged.
     expect(result).toEqual({
       ...original,
-      backpack: result.backpack
+      backpack: result.backpack,
     });
 
     // The original RunState must not be mutated.
     expect(state).toEqual(original);
+  });
+});
+
+describe("Run identity [req-6.1]", () => {
+  // [req-6.1]: Test UUID generation for a new run.
+  // Why: Every run needs a valid persistent identity.
+  // Expected: The new run contains a valid UUID v4.
+  it("creates a valid run ID", () => {
+    // ARRANGE: Define a fixed seed.
+    const seed = 123;
+
+    // ACT: Create a new run.
+    const state = newRun(seed);
+
+    // ASSERT: The ID must match the UUID v4 format.
+    expect(state.runId).toMatch(
+      /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i,
+    );
+  });
+
+  // [req-6.1]: Test independent run identities.
+  // Why: Runs with identical seeds are still different runs.
+  // Expected: Each run receives a different ID.
+  it("creates different IDs for different runs", () => {
+    // ARRANGE: Use the same seed for both runs.
+    const seed = 123;
+
+    // ACT: Create two independent runs.
+    const first = newRun(seed);
+    const second = newRun(seed);
+
+    // ASSERT: Both runs must have different IDs.
+    expect(first.runId).not.toBe(second.runId);
+
+    // Their initial shop offers must still be identical.
+    expect(first.shop).toEqual(second.shop);
+
+    // Their next shop seeds must also be identical.
+    expect(first.seed).toBe(second.seed);
+  });
+
+  // [req-6.1]: Test identity preservation during shop actions.
+  // Why: Buying, moving, selling and rerolling belong to the same run.
+  // Expected: All successful actions preserve the original run ID.
+  it("preserves the run ID during shop actions", () => {
+    // ARRANGE: Create a new run.
+    const state = newRun(123);
+    const originalId = state.runId;
+
+    // ACT: Buy, move and sell an item, then reroll.
+    const bought = buyItem(state, 0);
+    const moved = moveBackpackItem(bought, 0, 1);
+    const sold = sellItem(moved, 1);
+    const rerolled = rerollShop(sold);
+
+    // ASSERT: All actions must actually succeed.
+    expect(bought).not.toBe(state);
+    expect(moved).not.toBe(bought);
+    expect(sold).not.toBe(moved);
+    expect(rerolled).not.toBe(sold);
+
+    // Every updated state must preserve the original ID.
+    expect(bought.runId).toBe(originalId);
+    expect(moved.runId).toBe(originalId);
+    expect(sold.runId).toBe(originalId);
+    expect(rerolled.runId).toBe(originalId);
+
+    // The original run ID must remain unchanged.
+    expect(state.runId).toBe(originalId);
+  });
+
+  // [req-6.1]: Test identity preservation after winning a battle.
+  // Why: Advancing to the next round must not create a new run.
+  // Expected: Wins and round increase while the run ID stays unchanged.
+  it("preserves the run ID after a battle victory", () => {
+    // ARRANGE: Create a new run.
+    const state = newRun(123);
+    const originalId = state.runId;
+
+    // ACT: Apply a winning battle result.
+    const result = applyBattleResult(state, "player");
+
+    // ASSERT: The battle result must be applied.
+    expect(result.wins).toBe(state.wins + 1);
+    expect(result.round).toBe(state.round + 1);
+
+    // The run ID must remain unchanged.
+    expect(result.runId).toBe(originalId);
+  });
+
+  // [req-6.1]: Test identity preservation after losing a battle.
+  // Why: Losing a life must not create a new run.
+  // Expected: Lives decrease while the run ID stays unchanged.
+  it("preserves the run ID after a battle loss", () => {
+    // ARRANGE: Create a new run.
+    const state = newRun(123);
+    const originalId = state.runId;
+
+    // ACT: Apply a losing battle result.
+    const result = applyBattleResult(state, "opponent");
+
+    // ASSERT: The player must lose one life.
+    expect(result.lives).toBe(state.lives - 1);
+    expect(result.round).toBe(state.round + 1);
+
+    // The run ID must remain unchanged.
+    expect(result.runId).toBe(originalId);
+  });
+
+  // [req-6.1]: Test identity preservation when a run ends.
+  // Why: Hall of Fame needs the original identity of a completed run.
+  // Expected: The final victory or defeat preserves the run ID.
+  it("preserves the run ID when the run ends", () => {
+    // ARRANGE: Create runs one battle away from completion.
+    const winning = {
+      ...newRun(123),
+      round: 5,
+      wins: 4,
+    };
+
+    const losing = {
+      ...newRun(123),
+      round: 3,
+      lives: 1,
+    };
+
+    // ACT: Apply the final battle results.
+    const victory = applyBattleResult(winning, "player");
+    const defeat = applyBattleResult(losing, "opponent");
+
+    // ASSERT: Both runs must reach their final outcome.
+    expect(victory.wins).toBe(5);
+    expect(defeat.lives).toBe(0);
+
+    // A completed run must not advance to another round.
+    expect(victory.round).toBe(winning.round);
+    expect(defeat.round).toBe(losing.round);
+
+    // Both completed runs must retain their original IDs.
+    expect(victory.runId).toBe(winning.runId);
+    expect(defeat.runId).toBe(losing.runId);
   });
 });

@@ -19,7 +19,7 @@ export interface ItemDef {
   cooldown: number;
   effects: ItemEffects;
   /** REQUIREMENT 4: ItemSet definition */
-  set?: ItemSetId
+  set?: ItemSetId;
 }
 
 /** A concrete item the player owns; several instances may share one `itemId`. */
@@ -37,8 +37,10 @@ export type ShopOffers = (string | null)[];
 export type Phase = "shop" | "searching" | "battle" | "finished";
 
 export interface RunState {
-  /** REQUIREMENT 7: Identify a run across submission retries. */
+  // [req-6.1]: Identify each run uniquely for persistence
+  // and prevent duplicate Hall of Fame submissions.
   runId: string;
+
   round: number;
   gold: number;
   lives: number;
@@ -159,5 +161,14 @@ export interface HallOfFameEntry {
 /** REQUIREMENT 7: The saved data for the form itself */
 export type Submission = {
   name: string;
-  status: "not_submitted" | "submitted"
- }
+  status: "not_submitted" | "submitted";
+};
+
+// [req-6.2]: Define a versioned save format containing the game state
+// and persistent Hall of Fame submission information.
+export interface SaveData {
+  version: number;
+  game: GameState;
+  submittedRunId: string | null;
+  submissionName: string;
+}
