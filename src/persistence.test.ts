@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { leaveBattle, newGame, skipReplay, startBattle, startSearch, updateRun } from "./game";
+import { advanceReplay, leaveBattle, newGame, skipReplay, startBattle, startSearch, updateRun } from "./game";
 import { applyBattleResult, buyItem, newRun, rerollShop } from "./run";
 
 import {
@@ -11,6 +11,8 @@ import {
   hasValidSaveStructure,
   isValidGameState,
   isValidSaveData,
+  restoreGame,
+  restoreSave,
 } from "./persistence";
 import type { GameState, Opponent } from "./types";
 
@@ -1352,6 +1354,270 @@ describe("Complete save validation [req-6.4]", () => {
     // ASSERT: The game must be finished and the save valid.
     expect(finished.phase).toBe("finished");
     expect(result).toBe(true);
+  });
+
+});
+
+describe("Shop recovery [req-6.5]", () => {
+
+  // [req-6.5]: Test restoring a shop after buying and rerolling.
+  // Why: Refreshing must not refund gold or generate new offers.
+  // Expected: The complete saved game remains unchanged.
+  it("restores the shop without changing player progress", () => {
+
+    // ARRANGE: Create a game, buy an item and reroll.
+    const game = newGame(123);
+
+    const bought = updateRun(game, (run) => buyItem(run, 0));
+    const rerolled = updateRun(bought, rerollShop);
+
+    const save = createSaveData(rerolled);
+    const raw = serializeSave(save);
+
+    // ACT: Restore the serialized save.
+    const restored = restoreSave(raw);
+
+    // ASSERT: Both shop actions must have succeeded.
+    expect(bought).not.toBe(game);
+    expect(rerolled).not.toBe(bought);
+
+    // All saved values must remain unchanged.
+    expect(restored).toEqual(save);
+  });
+
+  // [req-6.5]: Test recovery from interrupted matchmaking.
+  // Why: The original HTTP request cannot resume after refresh.
+  // Expected: Return to the same shop without changing the run.
+  it("returns an interrupted search to the same shop", () => {
+
+    // ARRANGE: Create a game and start matchmaking.
+    const game = newGame(123);
+    const bought = updateRun(game, (run) => buyItem(run, 0));
+
+    const searching = startSearch(bought, {
+      searchId: "test-search",
+      round: bought.run.round
+    });
+
+    const original = structuredClone(searching);
+
+    // ACT: Apply the refresh policy.
+    const restored = restoreGame(searching);
+
+    // ASSERT: The original search must have started.
+    expect(searching.phase).toBe("searching");
+
+    // The player must return to the shop.
+    expect(restored.phase).toBe("shop");
+
+    // The interrupted search must be cleared.
+    expect(restored.activeSearch).toBeNull();
+    expect(restored.error).toBeNull();
+
+    // All player progress must be preserved.
+    expect(restored.run).toEqual(searching.run);
+
+    // The original game must not be mutated.
+    expect(searching).toEqual(original);
+
+    // The player must be able to search again.
+    const retry = startSearch(restored, {
+      searchId: "retry-search",
+      round: restored.run.round
+    });
+
+    expect(retry.phase).toBe("searching");
+    expect(retry.activeSearch?.round).toBe(searching.run.round);
+  });
+
+});
+
+describe("Battle recovery [req-6.5]", () => {
+
+  // [req-6.5]: Test restoring an unfinished battle replay.
+  // Why: Refreshing must not change the opponent or battle result.
+  // Expected: The same battle resumes at the saved frame.
+  it("restores an unfinished replay unchanged", () => {
+
+    // ARRANGE: Create a battle and advance its replay.
+    const game = createTestBattle();
+    const advanced = advanceReplay(game);
+
+    const save = createSaveData(advanced);
+    const raw = serializeSave(save);
+
+    // ACT: Restore the battle save.
+    const restored = restoreSave(raw);
+
+    // ASSERT: The replay must have advanced before saving.
+    expect(advanced.battle?.frame).toBe(1);
+
+    // All battle and run data must be preserved.
+    expect(restored).toEqual(save);
+
+    // Continue the restored battle.
+    if (!restored) throw new Error("Expected a restored save");
+
+    const continued = advanceReplay(restored.game);
+
+    // The replay must continue from the saved frame.
+    expect(continued.battle?.frame).toBe(2);
+  });
+
+  // [req-6.5]: Test restoring an already scored battle.
+  // Why: Refreshing must not apply a battle result twice.
+  // Expected: Further replay actions leave the scored run unchanged.
+  it("does not score a completed replay again", () => {
+
+    // ARRANGE: Create and complete a battle.
+    const game = createTestBattle();
+    const completed = skipReplay(game);
+
+    const raw = serializeSave(createSaveData(completed));
+
+    // ACT: Restore the completed battle.
+    const restored = restoreSave(raw);
+
+    // ASSERT: The save must be restored successfully.
+    expect(restored).not.toBeNull();
+
+    if (!restored) throw new Error("Expected a restored save");
+
+    // The already scored game must remain unchanged.
+    expect(restored.game).toEqual(completed);
+
+    // Attempt to complete the replay again.
+    const skippedAgain = skipReplay(restored.game);
+    const advancedAgain = advanceReplay(restored.game);
+
+    // Both transitions must return the same game.
+    expect(skippedAgain).toBe(restored.game);
+    expect(advancedAgain).toBe(restored.game);
+
+    // Leaving the replay must return to the next shop.
+    const continued = leaveBattle(restored.game);
+
+    expect(continued.phase).toBe("shop");
+    expect(continued.run).toEqual(completed.run);
+  });
+
+  // [req-6.5]: Test a refresh before the final lost battle is scored.
+  // Why: Refreshing must not allow the player to avoid defeat.
+  // Expected: The original loss still ends the run.
+  it("preserves a final defeat after refresh", () => {
+
+    // ARRANGE: Create a run with one remaining life.
+    const game = newGame(123);
+
+    game.run.round = 3;
+    game.run.lives = 1;
+
+    // The existing test fixture uses a defensive player
+    // against a damage-dealing opponent.
+    const battle = createTestBattle(game);
+
+    // Save the unfinished replay.
+    const raw = serializeSave(createSaveData(battle));
+
+    // ACT: Restore and complete the original battle.
+    const restored = restoreSave(raw);
+
+    if (!restored) throw new Error("Expected a restored save");
+
+    const completed = skipReplay(restored.game);
+    const finished = leaveBattle(completed);
+
+    // ASSERT: The fixture must describe a losing battle.
+    expect(battle.battle?.result.winner).toBe("opponent");
+
+    // The saved winner must remain unchanged.
+    expect(restored.game.battle?.result.winner).toBe("opponent");
+
+    // The original defeat must still be applied.
+    expect(completed.run.lives).toBe(0);
+    expect(finished.phase).toBe("finished");
+
+    // Completing the replay again must not change the result.
+    expect(skipReplay(completed)).toBe(completed);
+  });
+
+});
+
+describe("Finished game recovery [req-6.5]", () => {
+
+  // [req-6.5]: Test restoring a completed and submitted run.
+  // Why: Refreshing must preserve the result and submission status.
+  // Expected: The complete save remains unchanged.
+  it("restores a finished run with submission metadata", () => {
+
+    // ARRANGE: Create a run one battle away from completion.
+    const game = newGame(123);
+
+    game.run.round = 7;
+    game.run.wins = 4;
+    game.run.lives = 1;
+
+    const battle = createTestBattle(game);
+    const finished = leaveBattle(skipReplay(battle));
+
+    const save = createSaveData(
+      finished,
+      finished.run.runId,
+      "Player"
+    );
+
+    const raw = serializeSave(save);
+
+    // ACT: Restore the completed save.
+    const restored = restoreSave(raw);
+
+    // ASSERT: The run must have finished.
+    expect(finished.phase).toBe("finished");
+
+    // The run and all submission metadata must survive.
+    expect(restored).toEqual(save);
+  });
+
+});
+
+describe("Invalid save recovery [req-6.5]", () => {
+
+  // [req-6.5]: Test malformed and incompatible save data.
+  // Why: Invalid saves must not crash game initialization.
+  // Expected: Recovery returns null.
+  it.each([
+    "",
+    '{"version":1,',
+    '{"version":999}'
+  ])("returns null for an invalid save: %s", (raw) => {
+
+    // ARRANGE: Use the supplied invalid JSON string.
+
+    // ACT: Attempt to restore the save.
+    const restored = restoreSave(raw);
+
+    // ASSERT: Invalid data must not be restored.
+    expect(restored).toBeNull();
+  });
+
+  // [req-6.5]: Test recovery of an impossible run.
+  // Why: Valid JSON must not bypass game validation.
+  // Expected: Recovery returns null.
+  it("rejects a save containing impossible progress", () => {
+
+    // ARRANGE: Create an inconsistent run.
+    const game = newGame(123);
+
+    game.run.round = 1;
+    game.run.wins = 4;
+
+    const raw = serializeSave(createSaveData(game));
+
+    // ACT: Attempt to restore the invalid run.
+    const restored = restoreSave(raw);
+
+    // ASSERT: The impossible run must not be restored.
+    expect(restored).toBeNull();
   });
 
 });

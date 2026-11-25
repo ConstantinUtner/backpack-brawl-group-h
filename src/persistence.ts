@@ -502,3 +502,33 @@ export function isValidSaveData(
 
   return true;
 }
+
+// [req-6.5]: Cancel interrupted matchmaking on refresh.
+// All other valid game states can be restored unchanged.
+export function restoreGame(game: GameState): GameState {
+  if (game.phase === "searching") {
+    return {
+      ...game,
+      phase: "shop",
+      activeSearch: null,
+      error: null,
+    };
+  }
+
+  return game;
+}
+
+// [req-6.5]: Parse and validate saved data before applying
+// the refresh policy. Invalid saves return null.
+export function restoreSave(raw: string): SaveData | null {
+  const parsed = parseSave(raw);
+
+  if (!isValidSaveData(parsed)) {
+    return null;
+  }
+
+  return {
+    ...parsed,
+    game: restoreGame(parsed.game),
+  };
+}
