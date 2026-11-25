@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { newGame, updateRun } from "./game";
+import { leaveBattle, newGame, skipReplay, startBattle, startSearch, updateRun } from "./game";
 import { applyBattleResult, buyItem, newRun, rerollShop } from "./run";
 
 import {
@@ -9,7 +9,50 @@ import {
   parseSave,
   isValidRunState,
   hasValidSaveStructure,
+  isValidGameState,
+  isValidSaveData,
 } from "./persistence";
+import type { GameState, Opponent } from "./types";
+
+// [req-6.4]: Create a real battle through the existing game transitions
+// so validation tests use realistic battle data.
+function createTestBattle(
+  initialGame = newGame(123)
+): GameState {
+
+  // Ensure an affordable item is available.
+  initialGame.run.shop[0] = "pot-lid";
+
+  const bought = updateRun(
+    initialGame,
+    (run) => buyItem(run, 0)
+  );
+
+  const search = {
+    searchId: "test-search",
+    round: bought.run.round
+  };
+
+  const searching = startSearch(bought, search);
+
+  const opponent: Opponent = {
+    id: "test-opponent",
+    name: "Test Opponent",
+    icon: "O",
+    hp: 25,
+    round: bought.run.round,
+    items: ["chipped-dagger"]
+  };
+
+  const game = startBattle(searching, search, opponent);
+
+  // Ensure the fixture actually contains a battle.
+  if (game.phase !== "battle" || !game.battle) {
+    throw new Error("Expected a battle");
+  }
+
+  return game;
+}
 
 describe("Creating save data [req-6.2]", () => {
 
@@ -903,6 +946,412 @@ describe("Parsed save validation [req-6.3]", () => {
 
     // The impossible run must be rejected.
     expect(result).toBe(false);
+  });
+
+});
+
+describe("Persisted game phases [req-6.4]", () => {
+
+  // [req-6.4]: Test a valid shop phase.
+  // Why: Regular shop states must be restorable.
+  // Expected: The game passes validation.
+  it("accepts a valid shop state", () => {
+
+    // ARRANGE: Create a regular new game.
+    const game = newGame(123);
+
+    // ACT: Validate the game.
+    const result = isValidGameState(game);
+
+    // ASSERT: The shop state must be accepted.
+    expect(result).toBe(true);
+  });
+
+
+  // [req-6.4]: Test a valid active search.
+  // Why: Searching states must be recognized before recovery.
+  // Expected: A search for the current round is valid.
+  it("accepts a valid searching state", () => {
+
+    // ARRANGE: Create a game and buy an item.
+    const game = newGame(123);
+    const bought = updateRun(game, (run) => buyItem(run, 0));
+
+    const searching = startSearch(bought, {
+      searchId: "test-search",
+      round: bought.run.round
+    });
+
+    // ACT: Validate the searching state.
+    const result = isValidGameState(searching);
+
+    // ASSERT: The search must have started.
+    expect(searching.phase).toBe("searching");
+
+    // The searching state must be valid.
+    expect(result).toBe(true);
+  });
+
+
+  // [req-6.4]: Test inconsistent game phases.
+  // Why: The phase must match the available game data.
+  // Expected: Invalid phase combinations are rejected.
+  it.each([
+    { phase: "unknown" },
+    { phase: "searching", activeSearch: null },
+    { phase: "battle", battle: null },
+    { phase: "finished" }
+  ])("rejects inconsistent phase: %j", (changes) => {
+
+    // ARRANGE: Create a game with inconsistent phase data.
+    const game = {
+      ...newGame(123),
+      ...changes
+    };
+
+    // ACT: Validate the modified game.
+    const result = isValidGameState(game);
+
+    // ASSERT: The inconsistent phase must be rejected.
+    expect(result).toBe(false);
+  });
+
+
+  // [req-6.4]: Test a search belonging to another round.
+  // Why: An outdated search must not be restored.
+  // Expected: The game is rejected.
+  it("rejects a search for the wrong round", () => {
+
+    // ARRANGE: Create a valid search.
+    const game = newGame(123);
+    const bought = updateRun(game, (run) => buyItem(run, 0));
+
+    const searching = startSearch(bought, {
+      searchId: "test-search",
+      round: bought.run.round
+    });
+
+    // Change the saved search round.
+    const invalid = {
+      ...searching,
+      activeSearch: {
+        searchId: "test-search",
+        round: searching.run.round + 1
+      }
+    };
+
+    // ACT: Validate the inconsistent search.
+    const result = isValidGameState(invalid);
+
+    // ASSERT: The search must have started before modification.
+    expect(searching.phase).toBe("searching");
+
+    // The incorrect search round must be rejected.
+    expect(result).toBe(false);
+  });
+
+});
+
+describe("Persisted battle replay [req-6.4]", () => {
+
+  // [req-6.4]: Test replay data that JSON cannot represent.
+  // Why: Validation accepts unknown values and must handle them safely.
+  // Expected: A replay with a BigInt result is rejected without throwing.
+  it("rejects a non-JSON replay result", () => {
+    // ARRANGE: Replace the result of a real battle with a BigInt.
+    const game = createTestBattle();
+    const invalid = { ...game, battle: { ...game.battle, result: BigInt(1) } };
+
+    // ACT: Validate the modified game.
+    const valid = isValidGameState(invalid);
+
+    // ASSERT: The malformed replay is rejected.
+    expect(valid).toBe(false);
+  });
+
+  // [req-6.4]: Test an unfinished battle replay.
+  // Why: A refresh during battle must preserve the existing combat.
+  // Expected: The valid replay is accepted.
+  it("accepts an unfinished battle replay", () => {
+
+    // ARRANGE: Create a real battle.
+    const game = createTestBattle();
+
+    // ACT: Validate the battle state.
+    const result = isValidGameState(game);
+
+    // ASSERT: The replay must still be unfinished.
+    expect(game.battle?.frame).toBe(0);
+
+    // The battle state must be valid.
+    expect(result).toBe(true);
+  });
+
+
+  // [req-6.4]: Test invalid replay frame indices.
+  // Why: The UI must never access a nonexistent frame.
+  // Expected: Invalid frame indices are rejected.
+  it.each([
+    -1,
+    1000,
+    1.5
+  ])("rejects invalid replay frame: %s", (frame) => {
+
+    // ARRANGE: Create a battle with an invalid frame.
+    const game = createTestBattle();
+
+    if (!game.battle) throw new Error("Expected a battle");
+
+    game.battle.frame = frame;
+
+    // ACT: Validate the corrupted replay.
+    const result = isValidGameState(game);
+
+    // ASSERT: The invalid frame must be rejected.
+    expect(result).toBe(false);
+  });
+
+
+  // [req-6.4]: Test a changed battle winner.
+  // Why: A saved replay must match the original simulation.
+  // Expected: An inconsistent winner is rejected.
+  it("rejects a modified battle winner", () => {
+
+    // ARRANGE: Create a real battle.
+    const game = createTestBattle();
+
+    if (!game.battle) throw new Error("Expected a battle");
+
+    // Change the winner to the opposite side.
+    game.battle.result.winner =
+      game.battle.result.winner === "player"
+        ? "opponent"
+        : "player";
+
+    // ACT: Validate the changed result.
+    const result = isValidGameState(game);
+
+    // ASSERT: The modified result must be rejected.
+    expect(result).toBe(false);
+  });
+
+
+  // [req-6.4]: Test corrupted replay data.
+  // Why: BattleView requires a complete and valid frame sequence.
+  // Expected: A replay without frames is rejected.
+  it("rejects a replay without frames", () => {
+
+    // ARRANGE: Create a battle and remove its frames.
+    const game = createTestBattle();
+
+    if (!game.battle) throw new Error("Expected a battle");
+
+    game.battle.result.frames = [];
+
+    // ACT: Validate the corrupted battle.
+    const result = isValidGameState(game);
+
+    // ASSERT: The replay must be rejected.
+    expect(result).toBe(false);
+  });
+
+
+  // [req-6.4]: Test unknown opponent items.
+  // Why: Invalid item IDs must not crash the battle simulation.
+  // Expected: The saved battle is rejected safely.
+  it("rejects an unknown opponent item", () => {
+
+    // ARRANGE: Create a battle with an invalid opponent item.
+    const game = createTestBattle();
+
+    if (!game.battle) throw new Error("Expected a battle");
+
+    game.battle.opponent.items = ["unknown-item"];
+
+    // ACT: Validate the battle.
+    const result = isValidGameState(game);
+
+    // ASSERT: The invalid opponent must be rejected.
+    expect(result).toBe(false);
+  });
+
+
+  // [req-6.4]: Test a completed battle in an active run.
+  // Why: The run advances before leaving the completed replay.
+  // Expected: The previous round's replay remains valid.
+  it("accepts an already scored battle", () => {
+
+    // ARRANGE: Create a battle and finish its replay.
+    const game = createTestBattle();
+    const completed = skipReplay(game);
+
+    // ACT: Validate the completed replay.
+    const result = isValidGameState(completed);
+
+    // ASSERT: The run must have advanced.
+    expect(completed.run.round).toBe(game.run.round + 1);
+
+    // The opponent must still belong to the previous round.
+    expect(completed.battle?.opponent.round)
+      .toBe(game.run.round);
+
+    // The completed replay must be valid.
+    expect(result).toBe(true);
+  });
+
+
+  // [req-6.4]: Test resetting an already scored replay.
+  // Why: A completed battle must not become unfinished again.
+  // Expected: The inconsistent replay is rejected.
+  it("rejects a reset replay after its result was applied", () => {
+
+    // ARRANGE: Create and complete a battle.
+    const completed = skipReplay(createTestBattle());
+
+    if (!completed.battle) {
+      throw new Error("Expected a battle");
+    }
+
+    // Reset the frame without resetting the scored run.
+    completed.battle.frame = 0;
+
+    // ACT: Validate the inconsistent game.
+    const result = isValidGameState(completed);
+
+    // ASSERT: The replay must not be accepted.
+    expect(result).toBe(false);
+  });
+
+});
+
+describe("Persisted final battle [req-6.4]", () => {
+
+  // [req-6.4]: Test a battle that ends the entire run.
+  // Why: The final battle does not advance the round.
+  // Expected: Both the completed replay and result page are valid.
+  it("accepts the final battle and finished game", () => {
+
+    // ARRANGE: Create a run one battle away from completion.
+    const game = newGame(123);
+
+    game.run.round = 7;
+    game.run.wins = 4;
+    game.run.lives = 1;
+
+    const battle = createTestBattle(game);
+
+    // ACT: Finish the replay and leave the battle.
+    const completed = skipReplay(battle);
+    const finished = leaveBattle(completed);
+
+    const validBattle = isValidGameState(completed);
+    const validFinished = isValidGameState(finished);
+
+    // ASSERT: The final battle must not advance the round.
+    expect(completed.run.round).toBe(7);
+
+    // Leaving the final battle must end the game.
+    expect(finished.phase).toBe("finished");
+    expect(finished.battle).toBeNull();
+
+    // Both saved states must be valid.
+    expect(validBattle).toBe(true);
+    expect(validFinished).toBe(true);
+  });
+
+});
+
+describe("Complete save validation [req-6.4]", () => {
+
+  // [req-6.4]: Test validation of a serialized battle save.
+  // Why: A complete battle must survive a serialization round trip.
+  // Expected: The restored save matches the original and is valid.
+  it("accepts a serialized and parsed battle save", () => {
+
+    // ARRANGE: Create and serialize a battle save.
+    const game = createTestBattle();
+    const save = createSaveData(game);
+    const raw = serializeSave(save);
+
+    // ACT: Parse and validate the save.
+    const parsed = parseSave(raw);
+    const result = isValidSaveData(parsed);
+
+    // ASSERT: All saved values must be preserved.
+    expect(parsed).toEqual(save);
+
+    // The complete save must be accepted.
+    expect(result).toBe(true);
+  });
+
+
+  // [req-6.4]: Test an invalid game inside a valid save format.
+  // Why: A valid run and version are not enough.
+  // Expected: The full save is rejected.
+  it("rejects a save with an inconsistent game phase", () => {
+
+    // ARRANGE: Create a valid save with an invalid phase.
+    const save = createSaveData(newGame(123));
+
+    save.game.phase = "battle";
+
+    // ACT: Validate the complete save.
+    const result = isValidSaveData(save);
+
+    // ASSERT: A battle phase without a replay must be rejected.
+    expect(result).toBe(false);
+  });
+
+
+  // [req-6.4]: Test a submitted ID for an unfinished run.
+  // Why: Only finished runs may be submitted.
+  // Expected: The invalid submission status is rejected.
+  it("rejects a submitted unfinished run", () => {
+
+    // ARRANGE: Create a shop save marked as submitted.
+    const game = newGame(123);
+
+    const save = createSaveData(
+      game,
+      game.run.runId,
+      "Player"
+    );
+
+    // ACT: Validate the save.
+    const result = isValidSaveData(save);
+
+    // ASSERT: An active run must not be marked as submitted.
+    expect(result).toBe(false);
+  });
+
+
+  // [req-6.4]: Test submission metadata for a finished run.
+  // Why: Successfully submitted runs must remain restorable.
+  // Expected: Valid submission information is accepted.
+  it("accepts a submitted finished run", () => {
+
+    // ARRANGE: Create and complete the final battle.
+    const game = newGame(123);
+
+    game.run.round = 7;
+    game.run.wins = 4;
+    game.run.lives = 1;
+
+    const battle = createTestBattle(game);
+    const finished = leaveBattle(skipReplay(battle));
+
+    const save = createSaveData(
+      finished,
+      finished.run.runId,
+      "Player"
+    );
+
+    // ACT: Validate the finished save.
+    const result = isValidSaveData(save);
+
+    // ASSERT: The game must be finished and the save valid.
+    expect(finished.phase).toBe("finished");
+    expect(result).toBe(true);
   });
 
 });

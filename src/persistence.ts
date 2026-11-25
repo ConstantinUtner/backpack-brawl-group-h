@@ -1,7 +1,9 @@
+import { buildOpponentFighter, buildPlayerFighter, simulateBattle } from "./battle";
+import { isReplayDone } from "./game";
 import { CATALOG } from "./items";
-import { GOLD_PER_ROUND, START_GOLD, START_LIVES, WINS_TO_VICTORY } from "./run";
+import { GOLD_PER_ROUND, START_GOLD, START_LIVES, WINS_TO_VICTORY, runOutcome } from "./run";
 import { BACKPACK_SIZE, SHOP_SIZE } from "./shop";
-import type { Backpack, GameState, RunState, SaveData, ShopOffers } from "./types";
+import type { Backpack, BattleReplay, GameState, Opponent, RunState, SaveData, ShopOffers } from "./types";
 
 // [req-6.2]: Define the currently supported save format version.
 export const SAVE_VERSION = 1;
@@ -265,6 +267,237 @@ export function hasValidSaveStructure(
   // The entered submission name must be a string.
   if (typeof value.submissionName !== "string") {
     return false;
+  }
+
+  return true;
+}
+
+// [req-6.4]: Validate the saved opponent before using it
+// to check the battle replay.
+function isValidOpponent(value: unknown): value is Opponent {
+
+  if (!isRecord(value)) return false;
+
+  // Validate the opponent's identity and display information.
+  if (typeof value.id !== "string" || value.id.length === 0) {
+    return false;
+  }
+
+  if (typeof value.name !== "string") return false;
+  if (typeof value.icon !== "string") return false;
+
+  // The opponent must have positive health.
+  if (!isIntegerInRange(value.hp, 1, Number.MAX_SAFE_INTEGER)) {
+    return false;
+  }
+
+  // The opponent must belong to a possible round.
+  const maxRounds = WINS_TO_VICTORY + START_LIVES - 1;
+
+  if (!isIntegerInRange(value.round, 1, maxRounds)) {
+    return false;
+  }
+
+  // The opponent can only carry known items.
+  if (!Array.isArray(value.items)) return false;
+  if (value.items.length > BACKPACK_SIZE) return false;
+
+  return [...value.items].every(isValidItemId);
+}
+
+// [req-6.4]: Validate the complete replay against the existing
+// deterministic battle simulation instead of duplicating combat rules.
+function isValidBattleReplay(
+  value: unknown,
+  run: RunState
+): value is BattleReplay {
+
+  if (!isRecord(value)) return false;
+
+  // Validate the opponent before rebuilding the fighters.
+  if (!isValidOpponent(value.opponent)) return false;
+
+  // A battle requires at least one player item.
+  if (run.backpack.every((slot) => slot === null)) {
+    return false;
+  }
+
+  // Rebuild the expected fighters using the existing game logic.
+  const player = buildPlayerFighter(run.backpack);
+  const enemy = buildOpponentFighter(value.opponent);
+
+  try {
+    // Reject inconsistent saved fighter data.
+    if (JSON.stringify(value.player) !== JSON.stringify(player)) {
+      return false;
+    }
+
+    if (JSON.stringify(value.enemy) !== JSON.stringify(enemy)) {
+      return false;
+    }
+
+    // Calculate the expected result for validation only.
+    const expectedResult = simulateBattle(player, enemy);
+
+    // The saved winner, frames and events must match the expected result.
+    if (JSON.stringify(value.result) !== JSON.stringify(expectedResult)) {
+      return false;
+    }
+
+    // The replay must point to an existing frame.
+    return isIntegerInRange(value.frame, 0, expectedResult.frames.length - 1);
+  } catch {
+    // [req-6.4]: Reject replay data that cannot be serialized as JSON.
+    return false;
+  }
+}
+
+// [req-6.4]: Ensure the saved replay belongs to the correct round
+// and matches whether its result has already been applied.
+function isValidBattleProgress(
+  battle: BattleReplay,
+  run: RunState
+): boolean {
+
+  const done = isReplayDone(battle);
+  const outcome = runOutcome(run);
+
+  // An unfinished replay must belong to the current active round.
+  if (!done) {
+    return outcome === null &&
+      battle.opponent.round === run.round;
+  }
+
+  // A scored victory requires at least one recorded win.
+  if (battle.result.winner === "player" && run.wins === 0) {
+    return false;
+  }
+
+  // A scored defeat requires at least one lost life.
+  if (
+    battle.result.winner === "opponent" &&
+    run.lives === START_LIVES
+  ) {
+    return false;
+  }
+
+  // If the battle ended the run, the round did not advance.
+  if (outcome !== null) {
+    const expectedWinner =
+      outcome === "victory" ? "player" : "opponent";
+
+    return (
+      battle.opponent.round === run.round &&
+      battle.result.winner === expectedWinner
+    );
+  }
+
+  // A completed battle in an active run belongs to the previous round.
+  return battle.opponent.round === run.round - 1;
+}
+
+// [req-6.4]: Validate the game phase and ensure that
+// search, battle and run state are consistent.
+export function isValidGameState(
+  value: unknown
+): value is GameState {
+
+  if (!isRecord(value)) return false;
+  if (!isValidRunState(value.run)) return false;
+
+  // Search errors must be strings or null.
+  if (value.error !== null && typeof value.error !== "string") {
+    return false;
+  }
+
+  const outcome = runOutcome(value.run);
+
+  switch (value.phase) {
+
+    case "shop":
+      // Shopping requires an active run without a search or battle.
+      return (
+        outcome === null &&
+        value.activeSearch === null &&
+        value.battle === null
+      );
+
+    case "searching":
+      // A search requires an active run and no existing battle.
+      if (outcome !== null || value.battle !== null) {
+        return false;
+      }
+
+      // Matchmaking requires at least one backpack item.
+      if (value.run.backpack.every((slot) => slot === null)) {
+        return false;
+      }
+
+      // The active search must belong to the current round.
+      return (
+        isRecord(value.activeSearch) &&
+        typeof value.activeSearch.searchId === "string" &&
+        value.activeSearch.searchId.length > 0 &&
+        value.activeSearch.round === value.run.round &&
+        value.error === null
+      );
+
+    case "battle":
+      // A battle cannot have an active search.
+      if (value.activeSearch !== null || value.error !== null) {
+        return false;
+      }
+
+      // Validate the replay itself and its relationship to the run.
+      return (
+        isValidBattleReplay(value.battle, value.run) &&
+        isValidBattleProgress(value.battle, value.run)
+      );
+
+    case "finished":
+      // A finished game must have a completed run without a search or battle.
+      return (
+        outcome !== null &&
+        value.activeSearch === null &&
+        value.battle === null &&
+        value.error === null
+      );
+
+    default:
+      // Reject unknown or missing game phases.
+      return false;
+  }
+}
+
+// [req-6.4]: Accept a save only when its format,
+// complete game state and submission status are valid.
+export function isValidSaveData(
+  value: unknown
+): value is SaveData {
+
+  // Validate the save format and its basic metadata.
+  if (!hasValidSaveStructure(value)) return false;
+
+  // Narrow the unknown value before accessing its properties.
+  if (!isRecord(value)) return false;
+
+  // Validate the complete game, including phase and replay.
+  if (!isValidGameState(value.game)) return false;
+
+  // Hall of Fame submissions are only possible on the result page.
+  if (value.submittedRunId !== null) {
+    if (value.game.phase !== "finished") return false;
+
+    // A successfully submitted run requires a valid player name.
+    if (typeof value.submissionName !== "string") {
+      return false;
+    }
+
+    const name = value.submissionName.trim();
+
+    if (name.length === 0 || name.length > 30) {
+      return false;
+    }
   }
 
   return true;
