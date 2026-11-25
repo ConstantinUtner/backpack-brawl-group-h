@@ -8,6 +8,9 @@ import type { Backpack, BattleReplay, GameState, Opponent, RunState, SaveData, S
 // [req-6.2]: Define the currently supported save format version.
 export const SAVE_VERSION = 1;
 
+// [req-6.6]: Use a consistent key to store and retrieve the game save.
+export const SAVE_KEY = "backpack-brawl-save";
+
 // [req-6.2]: Wrap the current game and submission information
 // in a versioned save object.
 export function createSaveData(
@@ -531,4 +534,45 @@ export function restoreSave(raw: string): SaveData | null {
     ...parsed,
     game: restoreGame(parsed.game),
   };
+}
+
+// [req-6.6]: Serialize and persist the complete save.
+// Handle storage failures without crashing the game.
+export function saveGame(save: SaveData): boolean {
+  try {
+    localStorage.setItem(SAVE_KEY, serializeSave(save));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+// [req-6.6]: Remove the stored save without affecting
+// other localStorage entries.
+export function clearSave(): void {
+  try {
+    localStorage.removeItem(SAVE_KEY);
+  } catch {
+    // Storage may be unavailable.
+  }
+}
+
+// [req-6.6]: Load and restore the saved game.
+// Discard invalid saves and return null if recovery fails.
+export function loadGame(): SaveData | null {
+  try {
+    const raw = localStorage.getItem(SAVE_KEY);
+
+    if (raw === null) return null;
+
+    const restored = restoreSave(raw);
+
+    if (restored === null) {
+      clearSave();
+    }
+
+    return restored;
+  } catch {
+    return null;
+  }
 }

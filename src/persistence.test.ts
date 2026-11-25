@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { advanceReplay, leaveBattle, newGame, skipReplay, startBattle, startSearch, updateRun } from "./game";
 import { applyBattleResult, buyItem, newRun, rerollShop } from "./run";
 
@@ -13,6 +13,10 @@ import {
   isValidSaveData,
   restoreGame,
   restoreSave,
+  SAVE_KEY,
+  saveGame,
+  loadGame,
+  clearSave,
 } from "./persistence";
 import type { GameState, Opponent } from "./types";
 
@@ -1618,6 +1622,149 @@ describe("Invalid save recovery [req-6.5]", () => {
 
     // ASSERT: The impossible run must not be restored.
     expect(restored).toBeNull();
+  });
+
+});
+
+describe("LocalStorage persistence [req-6.6]", () => {
+
+  // [req-6.6]: Simulate browser storage for isolated unit tests.
+  beforeEach(() => {
+    const storage = new Map<string, string>();
+
+    vi.stubGlobal("localStorage", {
+      setItem: (key: string, value: string) =>
+        storage.set(key, value),
+
+      getItem: (key: string) =>
+        storage.get(key) ?? null,
+
+      removeItem: (key: string) =>
+        storage.delete(key)
+    });
+  });
+
+  // Restore the original environment after every test.
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  // [req-6.6]: Test saving and loading a complete game.
+  // Why: Persistent storage must preserve all saved data.
+  // Expected: The loaded save matches the original.
+  it("saves and loads a game", () => {
+
+    // ARRANGE: Create a valid save.
+    const save = createSaveData(newGame(123));
+
+    // ACT: Store and load the save.
+    const saved = saveGame(save);
+    const loaded = loadGame();
+
+    // ASSERT: Storage succeeds and preserves all data.
+    expect(saved).toBe(true);
+    expect(loaded).toEqual(save);
+  });
+
+  // [req-6.6]: Test overwriting an existing save.
+  // Why: Only the latest game state should be restored.
+  // Expected: The updated save replaces the previous one.
+  it("overwrites the previous save", () => {
+
+    // ARRANGE: Create and save a game.
+    const game = newGame(123);
+    saveGame(createSaveData(game));
+
+    const updated = updateRun(game, rerollShop);
+    const latestSave = createSaveData(updated);
+
+    // ACT: Store the updated game.
+    saveGame(latestSave);
+
+    // ASSERT: The reroll must have succeeded.
+    expect(updated).not.toBe(game);
+
+    // Only the latest state must be restored.
+    expect(loadGame()).toEqual(latestSave);
+  });
+
+  // [req-6.6]: Test loading without an existing save.
+  // Why: First-time players must be able to start normally.
+  // Expected: Loading returns null.
+  it("returns null when no save exists", () => {
+
+    // ARRANGE: Storage is empty.
+
+    // ACT: Attempt to load a save.
+    const loaded = loadGame();
+
+    // ASSERT: No game must be restored.
+    expect(loaded).toBeNull();
+  });
+
+  // [req-6.6]: Test recovery from corrupted storage.
+  // Why: Invalid saves must not prevent starting a new run.
+  // Expected: The invalid save is removed.
+  it("discards corrupted saves", () => {
+
+    // ARRANGE: Store malformed JSON.
+    localStorage.setItem(SAVE_KEY, '{"version":1,');
+
+    // ACT: Attempt to load the invalid save.
+    const loaded = loadGame();
+
+    // ASSERT: Recovery fails safely.
+    expect(loaded).toBeNull();
+
+    // The corrupted save must be removed.
+    expect(localStorage.getItem(SAVE_KEY)).toBeNull();
+  });
+
+  // [req-6.6]: Test removing the game save.
+  // Why: Clearing a save must not affect unrelated data.
+  // Expected: Only the game save is removed.
+  it("clears only the game save", () => {
+
+    // ARRANGE: Store a game and an unrelated value.
+    saveGame(createSaveData(newGame(123)));
+    localStorage.setItem("other-key", "keep-me");
+
+    // ACT: Remove the game save.
+    clearSave();
+
+    // ASSERT: The game save is gone.
+    expect(loadGame()).toBeNull();
+
+    // Unrelated storage entries remain unchanged.
+    expect(localStorage.getItem("other-key")).toBe("keep-me");
+  });
+
+  // [req-6.6]: Test unavailable browser storage.
+  // Why: Storage failures must not crash the application.
+  // Expected: Saving fails safely and loading returns null.
+  it("handles unavailable storage safely", () => {
+
+    // ARRANGE: Simulate failing storage operations.
+    const fail = () => {
+      throw new Error("Storage unavailable");
+    };
+
+    vi.stubGlobal("localStorage", {
+      setItem: fail,
+      getItem: fail,
+      removeItem: fail
+    });
+
+    const save = createSaveData(newGame(123));
+
+    // ACT: Try writing and reading with unavailable storage.
+    const saved = saveGame(save);
+    const loaded = loadGame();
+
+    // ASSERT: All storage failures are handled safely.
+    expect(saved).toBe(false);
+    expect(loaded).toBeNull();
+    expect(() => clearSave()).not.toThrow();
   });
 
 });
