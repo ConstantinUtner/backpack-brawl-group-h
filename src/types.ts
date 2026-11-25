@@ -19,7 +19,7 @@ export interface ItemDef {
   cooldown: number;
   effects: ItemEffects;
   /** REQUIREMENT 4: ItemSet definition */
-  set?: ItemSetId
+  set?: ItemSetId;
 }
 
 /** A concrete item the player owns; several instances may share one `itemId`. */
@@ -147,6 +147,22 @@ export interface GameState {
   /** Last opponent-search error, shown in the shop. */
   error: string | null;
 }
+
+/** REQUIREMENT 7: Share the agreed score contract across API and UI. */
+export interface HallOfFameEntry {
+  runId: string;
+  name: string;
+  outcome: "victory" | "defeat";
+  wins: number;
+  rounds: number;
+  remainingLives: number;
+}
+
+/** REQUIREMENT 7: The saved data for the form itself */
+export type Submission = {
+  name: string;
+  status: "not_submitted" | "submitted";
+};
 
 // [req-6.2]: Define a versioned save format containing the game state
 // and persistent Hall of Fame submission information.

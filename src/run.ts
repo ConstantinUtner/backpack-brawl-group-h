@@ -32,7 +32,11 @@ export function firstFreeSlot(state: RunState): number {
 /** Why an offer can't be bought right now, or `null` if it can. */
 export function buyBlocker(state: RunState, offerIndex: number): string | null {
   // [req-1.1]: Reject indices that are not valid shop positions.
-  if (!Number.isInteger(offerIndex) || offerIndex < 0 || offerIndex >= state.shop.length) {
+  if (
+    !Number.isInteger(offerIndex) ||
+    offerIndex < 0 ||
+    offerIndex >= state.shop.length
+  ) {
     return "Invalid shop offer";
   }
 
@@ -55,13 +59,23 @@ export function buyItem(state: RunState, offerIndex: number): RunState {
   backpack[slot] = { uid: `item-${state.nextUid}`, itemId };
   const shop = [...state.shop];
   shop[offerIndex] = null;
-  return { ...state, gold: state.gold - getItem(itemId).price, shop, backpack, nextUid: state.nextUid + 1 };
+  return {
+    ...state,
+    gold: state.gold - getItem(itemId).price,
+    shop,
+    backpack,
+    nextUid: state.nextUid + 1,
+  };
 }
 
 /** Why an item can't be sold, or `null` if it can. */
 export function sellBlocker(state: RunState, slotIndex: number): string | null {
   // [req-1.2]: Only valid backpack slots can be sold.
-  if (!Number.isInteger(slotIndex) || slotIndex < 0 || slotIndex >= state.backpack.length) {
+  if (
+    !Number.isInteger(slotIndex) ||
+    slotIndex < 0 ||
+    slotIndex >= state.backpack.length
+  ) {
     return "Invalid backpack slot";
   }
 
@@ -94,14 +108,18 @@ export function sellItem(state: RunState, slotIndex: number): RunState {
 export function moveBackpackItem(
   state: RunState,
   fromIndex: number,
-  toIndex: number
+  toIndex: number,
 ): RunState {
   // [req-2.1]: Only existing integer slot indices are valid.
   const isValidIndex = (index: number) =>
     Number.isInteger(index) && index >= 0 && index < state.backpack.length;
 
   // [req-2.1]: Reject invalid positions and moving to the same slot.
-  if (!isValidIndex(fromIndex) || !isValidIndex(toIndex) || fromIndex === toIndex) {
+  if (
+    !isValidIndex(fromIndex) ||
+    !isValidIndex(toIndex) ||
+    fromIndex === toIndex
+  ) {
     return state;
   }
 
@@ -112,7 +130,10 @@ export function moveBackpackItem(
   const backpack = [...state.backpack];
 
   // [req-2.1]: Swap both slots. If the target is empty, this moves the item.
-  [backpack[fromIndex], backpack[toIndex]] = [backpack[toIndex], backpack[fromIndex]];
+  [backpack[fromIndex], backpack[toIndex]] = [
+    backpack[toIndex],
+    backpack[fromIndex],
+  ];
 
   // [req-2.1]: Return a new state with the updated backpack.
   return { ...state, backpack };
@@ -134,7 +155,12 @@ export function rerollShop(state: RunState): RunState {
   const roll = rollShop(state.seed);
 
   // [req-1.3]: Update gold, offers and seed together.
-  return { ...state, gold: state.gold - REROLL_COST, shop: roll.offers, seed: roll.seed };
+  return {
+    ...state,
+    gold: state.gold - REROLL_COST,
+    shop: roll.offers,
+    seed: roll.seed,
+  };
 }
 
 export type RunOutcome = "victory" | "defeat";
@@ -149,11 +175,20 @@ export function runOutcome(state: RunState): RunOutcome | null {
 /** Starts the next round: round + 1, round gold, fresh shop. The backpack is kept. */
 export function startNextRound(state: RunState): RunState {
   const roll = rollShop(state.seed);
-  return { ...state, round: state.round + 1, gold: state.gold + GOLD_PER_ROUND, seed: roll.seed, shop: roll.offers };
+  return {
+    ...state,
+    round: state.round + 1,
+    gold: state.gold + GOLD_PER_ROUND,
+    seed: roll.seed,
+    shop: roll.offers,
+  };
 }
 
 /** Records a battle (win → +1 win, loss → −1 life) and moves on to the next round unless the run is over. */
 export function applyBattleResult(state: RunState, winner: Side): RunState {
-  const scored = winner === "player" ? { ...state, wins: state.wins + 1 } : { ...state, lives: state.lives - 1 };
+  const scored =
+    winner === "player"
+      ? { ...state, wins: state.wins + 1 }
+      : { ...state, lives: state.lives - 1 };
   return runOutcome(scored) ? scored : startNextRound(scored);
 }

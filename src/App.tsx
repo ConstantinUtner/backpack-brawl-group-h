@@ -1,5 +1,6 @@
 import { createBrowserRouter, Navigate, RouterProvider } from "react-router";
 import { ROUTES } from "./game";
+import { HallOfFame } from "./pages/HallOfFame";
 import { BattlePage } from "./pages/BattlePage";
 import { Layout } from "./pages/Layout";
 import { ResultPage } from "./pages/ResultPage";
@@ -10,6 +11,7 @@ import { RequireRoute } from "./state/RequireRoute";
 
 const router = createBrowserRouter([
   {
+    /** REQUIREMENT 7: Insert the HallOfFame routing */
     path: ROUTES.start,
     element: <Layout />,
     children: [
@@ -23,9 +25,33 @@ const router = createBrowserRouter([
           </RequireRoute>
         ),
       },
-      { path: ROUTES.shop, element: <RequireRoute route={ROUTES.shop}><ShopPage /></RequireRoute> },
-      { path: ROUTES.battle, element: <RequireRoute route={ROUTES.battle}><BattlePage /></RequireRoute> },
-      { path: ROUTES.result, element: <RequireRoute route={ROUTES.result}><ResultPage /></RequireRoute> },
+
+      /** REQUIREMENT 7: Insert the HallOfFame routing */
+      { path: ROUTES.hallOfFame, element: <HallOfFame /> },
+      {
+        path: ROUTES.shop,
+        element: (
+          <RequireRoute route={ROUTES.shop}>
+            <ShopPage />
+          </RequireRoute>
+        ),
+      },
+      {
+        path: ROUTES.battle,
+        element: (
+          <RequireRoute route={ROUTES.battle}>
+            <BattlePage />
+          </RequireRoute>
+        ),
+      },
+      {
+        path: ROUTES.result,
+        element: (
+          <RequireRoute route={ROUTES.result}>
+            <ResultPage />
+          </RequireRoute>
+        ),
+      },
       { path: "*", element: <Navigate to={ROUTES.start} replace /> },
     ],
   },
