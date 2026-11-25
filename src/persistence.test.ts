@@ -1666,6 +1666,25 @@ describe("LocalStorage persistence [req-6.6]", () => {
     expect(loaded).toEqual(save);
   });
 
+  // [req-6.8]: Preserve an unsubmitted name for a retry after refresh.
+  it("loads the draft name of a finished run without marking it submitted", () => {
+    // ARRANGE: Finish a run and enter a name without confirming its submission.
+    const game = newGame(123);
+    game.run.round = 3;
+    game.run.lives = 1;
+    const finished = leaveBattle(skipReplay(createTestBattle(game)));
+    const draft = createSaveData(finished, null, "Ada");
+
+    // ACT: Write the save and read it back through the refresh policy.
+    const saved = saveGame(draft);
+    const restored = loadGame();
+
+    // ASSERT: The finished run retains the draft name and can still be submitted.
+    expect(finished.phase).toBe("finished");
+    expect(saved).toBe(true);
+    expect(restored).toEqual(draft);
+  });
+
   // [req-6.6]: Test overwriting an existing save.
   // Why: Only the latest game state should be restored.
   // Expected: The updated save replaces the previous one.

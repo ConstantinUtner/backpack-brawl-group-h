@@ -1,5 +1,5 @@
 import { createContext, useContext } from "react";
-import type { GameState } from "../types";
+import type { GameState, Submission } from "../types";
 
 export interface GameContextValue {
   /** The current run, or `null` before the first run was started. */
@@ -8,6 +8,11 @@ export interface GameContextValue {
   startNewRun: () => void;
   /** Applies a pure transition from game.ts to the current run; ignored without a run. */
   update: (transition: (game: GameState) => GameState) => void;
+  // [req-6.8]: Expose the persisted submission state to the score form.
+  submission: Submission;
+
+  // [req-6.8]: Allow updating submission data for the current run.
+  updateSubmission: (runId: string, submission: Submission) => void;
 }
 
 export const GameContext = createContext<GameContextValue | null>(null);

@@ -27,6 +27,38 @@ export function GameProvider({ children }: { children: ReactNode }) {
   const value: GameContextValue = {
     game: save?.game ?? null,
 
+    // [req-6.8]: Derive the form state from the persisted save
+    // instead of maintaining a separate submission state.
+    submission: {
+      name: save?.submissionName ?? "",
+      status:
+        save && save.submittedRunId === save.game.run.runId
+          ? "submitted"
+          : "not_submitted",
+    },
+
+    // [req-6.8]: Persist submission changes together with the game.
+    updateSubmission: (runId, submission) => {
+      const current = saveRef.current;
+
+      // Ignore updates for missing, different or unfinished runs.
+      if (
+        !current ||
+        current.game.run.runId !== runId ||
+        current.game.phase !== "finished"
+      ) return;
+
+      // Prevent changes after a successful submission.
+      if (current.submittedRunId === runId) return;
+
+      commitSave({
+        ...current,
+        submissionName: submission.name,
+        submittedRunId:
+          submission.status === "submitted" ? runId : null,
+      });
+    },
+
     // [req-6.7]: Immediately persist a newly created run.
     startNewRun: () => {
       commitSave(createSaveData(newGame(randomSeed())));
