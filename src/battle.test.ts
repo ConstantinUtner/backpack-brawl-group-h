@@ -103,7 +103,7 @@ describe("battle status effects", () => {
     );
   });
  
-  it("stacks burn, damages every 2 ticks, and decays every tick", () => {
+  it("stacks burn, damages every 4 ticks, and decays every tick", () => {
     const player = fighterWithEffect("fire-dagger", { burn: 3 });
     const opponent = buildFighter([], 100);
  
@@ -115,18 +115,24 @@ describe("battle status effects", () => {
     });
  
     expect(frames[2].opponent).toMatchObject({
-      hp: 95,
+      hp: 100,
       burn: 4,
     });
  
     expect(frames[3].opponent).toMatchObject({
-      hp: 95,
+      hp: 100,
       burn: 6,
     });
  
     expect(frames[4].opponent).toMatchObject({
-      hp: 86,
+      hp: 91,
       burn: 8,
+    });
+
+    expect(frames[7].opponent.hp).toBe(91);
+    expect(frames[8].opponent).toMatchObject({
+      hp: 74,
+      burn: 16,
     });
   });
  
@@ -136,19 +142,19 @@ describe("battle status effects", () => {
  
     const { frames } = simulateBattle(player, opponent);
  
-    expect(frames[2].opponent).toMatchObject({
+    expect(frames[4].opponent).toMatchObject({
       hp: 99,
       block: 0,
-      burn: 4,
+      burn: 8,
     });
  
-    expect(frames[2].events).toContainEqual(
+    expect(frames[4].events).toContainEqual(
       expect.objectContaining({
         kind: "burn",
         source: "player",
         target: "opponent",
         amount: 1,
-        message: "Fighter takes 1 burn damage (4 fire damage blocked)",
+        message: "Fighter takes 1 burn damage (8 fire damage blocked)",
       }),
     );
   });
@@ -160,19 +166,19 @@ describe("battle status effects", () => {
     const { frames } = simulateBattle(player, opponent);
  
     expect(frames[6].opponent).toMatchObject({
-      hp: 97,
+      hp: 100,
       burn: 2,
     });
  
     expect(frames[7].opponent.burn).toBe(1);
- 
+
     expect(frames[8].opponent).toMatchObject({
-      hp: 96,
+      hp: 99,
       burn: 0,
     });
  
     expect(frames[10].opponent).toMatchObject({
-      hp: 96,
+      hp: 99,
       burn: 0,
     });
   });
