@@ -15,8 +15,8 @@ export const EFFECT_HELP: Record<keyof ItemEffects, string> = {
   damage: "Damage: hits the enemy. Block absorbs it first, the rest is lost from HP.",
   block: "Block: absorbs incoming damage until used up. Unused block stays for the rest of the battle.",
   /* REQUIREMENT 3: needed to add poison and heal for 'hovering-over' effect at items*/
-  poison: "Poison: poisons the enemy to take damage over time. It is not absorbed by block. Can be stacked by multiple use!",
-  heal: "Heal: Heals the user immediately after use for the amount mentioned.",
+  poison: "Poison: Adds stacks to the enemy on each activation. Every 2 seconds (4 ticks), each stack deals 1 HP of damage and ignores block. Stacks last until the battle ends.",
+  heal: "Heal: Immediately restores the user’s HP by the listed amount, up to their maximum HP.",
   burn: "Burn: Burns the enemy over time. It is absorbed by block and can be stacked by multiple use."
 };
 
@@ -79,8 +79,8 @@ export const RULES: RuleSection[] = [
     rules: [
       `Some Battle Items have special Effects like Poison or Heal.`,
       `The effects are activated during battle after a certain time.`,
-      `Heal and poison effect affects the HP or the user or enemy directly, ignoring block.`,
-      `The (🧪)poison effects stack with every activation.`,
+      `🧪 Poison adds stacks to the enemy on each activation. Every 2 seconds (4 ticks), each stack deals 1 HP of damage and ignores block. Stacks last until the battle ends.`,
+      `❤️ Heal immediately restores the user’s HP by the listed amount, up to their maximum HP.`,
       `The (🔥)burn effects stack with every activation, but does not ignore block.`
     ],
   },

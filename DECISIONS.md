@@ -63,13 +63,13 @@ interface HallOfFameEntry {
 ### Poison
 
 - Ein Item fügt seinem Gegner die angegebene Anzahl **Poison-Stacks** hinzu.
-- **Alle 3 Ticks:** **1 HP Schaden pro aktivem Stack**; Poison ignoriert Block.
+- **Alle 4 Ticks (2 Sekunden)** verursacht Poison **1 HP Schaden pro aktivem Stack** und ignoriert Block.
 - Stacks addieren sich und bleiben bis zum Kampfende bestehen.
 - Neue Stacks zählen bereits beim Schadenstick, in dem sie hinzugefügt wurden.
 
 ### Heal
 
-- Ein Item heilt den eigenen Kämpfer um seinen `heal`-Wert je nach Ticks. Stackt nicht wie Poison
+- Bei jeder Aktivierung heilt das Item den eigenen Kämpfer sofort um seinen `heal`-Wert, höchstens bis zu seinen maximalen HP.
 - `hp = Math.min(maxHp, hp + heal)`; Block ändert sich nicht.
 
 
@@ -131,7 +131,7 @@ Das stellt sicher, dass Burn durch Fire-Items schneller aufgebaut werden kann un
 2. Itemeffekte für **beide** Kämpfer ausführen.
 3. Auslösende Items abarbeiten: **Spieler zuerst, dann Gegner**; dabei normalen Schaden, Block, Heal und neue Status-Stacks anwenden.
 4. Neue Poison- und Burn-Stacks hinzufügen.
-5. Alle 2 Ticks Poison- und Burn-Schaden berechnen.
+5. Poison-Schaden alle 4 Ticks und Burn-Schaden alle 2 Ticks berechnen.
 6. Burn um 1 Stack reduzieren.
 7. Prüfen, ob jemand besiegt wurde.
 8. Kampfereignisse und Frame speichern.

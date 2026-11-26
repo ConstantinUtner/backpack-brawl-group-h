@@ -44,7 +44,7 @@ const EFFECT_LABELS: [keyof ItemEffects, (n: number) => string][] = [
   ["damage", (n) => `⚔️ ${n} dmg`],
   ["block", (n) => `🛡️ +${n} block`],
   /* REQUIREMENT 3: Effects need to have labels to be shown on the UI */
-  ["poison", (n) => `🧪+${n} damage per stack`],
+  ["poison", (n) => `🧪+${n} Poison stacks`],
   ["heal", (n) => `❤️+${n} heal`],
   /** REQUIREMENT 4: Burn label effect for UI */
   ["burn", (n) => `🔥+${n} burn damage per stack`]
