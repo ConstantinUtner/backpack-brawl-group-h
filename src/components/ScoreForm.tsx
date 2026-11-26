@@ -59,7 +59,7 @@ export function ScoreForm({
 
   /** REQUIREMENT 7: Use labels for each submission state. */
   return (
-    <form action={submitAction}>
+    <form action={submitAction} className="contents">
       <fieldset
         disabled={pending || submitted}
         className="col-span-2 mb-3 flex min-w-0 flex-col gap-3"
