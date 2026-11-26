@@ -17,7 +17,7 @@ export const EFFECT_HELP: Record<keyof ItemEffects, string> = {
   /* REQUIREMENT 3: needed to add poison and heal for 'hovering-over' effect at items*/
   poison: "Poison: Adds stacks to the enemy on each activation. Every 2 seconds (4 ticks), each stack deals 1 HP of damage and ignores block. Stacks last until the battle ends.",
   heal: "Heal: Immediately restores the user’s HP by the listed amount, up to their maximum HP.",
-  burn: "Burn: Burns the enemy over time. It is absorbed by block and can be stacked by multiple use."
+  burn: "Burn: Deals 1 damage per stack every 2 ticks. Block absorbs burn damage. Burn stacks decrease by 1 every tick and are capped at the fighter's remaining HP."
 };
 
 export const COOLDOWN_HELP = `Cooldown: the item fires every time this much battle time has passed (1 tick = ${TICK_SECONDS} s).`;
@@ -81,7 +81,12 @@ export const RULES: RuleSection[] = [
       `The effects are activated during battle after a certain time.`,
       `🧪 Poison adds stacks to the enemy on each activation. Every 2 seconds (4 ticks), each stack deals 1 HP of damage and ignores block. Stacks last until the battle ends.`,
       `❤️ Heal immediately restores the user’s HP by the listed amount, up to their maximum HP.`,
-      `The (🔥)burn effects stack with every activation, but does not ignore block.`
+      // [req-4]: Explain burn damage, stacking and decay.
+      `Burn stacks accumulate with every burn item activation.`,
+      `Burn deals 1 damage per stack every 2 ticks (${2 * TICK_SECONDS} s).`,
+      `Block absorbs burn damage before HP is reduced.`,
+      `Burn stacks decrease by 1 every tick and are capped at the fighter's remaining HP.`,
+      `Burn ends when no stacks remain.`,
     ],
   },
   /** REQUIREMENT 4: Item Sets Rules */
@@ -91,7 +96,8 @@ export const RULES: RuleSection[] = [
       `Some Battle Items have a set bonus that can be applied.`,
       `It only applies in Battle if you have 2+ items of the same set bonus category.`,
       `The Item Sets are marked with a badge on the top right corner and the active bonuses are shown below the panels.`,
-      `🔥 Fire Set items: add +1 burn to the burn stack for each set item in the same category.`,
+      // [req-4]: Clarify that the fire set bonus is fixed.
+      `Fire Set: With at least 2 Fire items, each burn item activation applies 1 additional burn stack. More items do not increase the bonus.`,
       `🛡️ Defense Set Items: add +1 block to each set item.`,
     ],
   },

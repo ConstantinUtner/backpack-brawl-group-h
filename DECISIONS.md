@@ -107,33 +107,38 @@ Die neuen Items erhalten Preise von 3, 5 und 7 Gold je Effektgruppe (aufsteigend
 
 | Set | Mindestens 3 zugehörige Items | Bonus bei 2+ Items |
 | --- | --- | --- |
-| **Fire** | Fire Dagger, Fire Bow, Fire Staff | Fire-Items geben bei jeder Burn-Anwendung **+1 Burn-Stack** zusätzlich |
+| **Fire** | Fire Dagger, Fire Bow, Fire Chopsticks | Fire-Items geben bei jeder Burn-Anwendung **+1 Burn-Stack** zusätzlich |
 | **Defense** | Oak Buckler, Pot Lid, Spiked Shield | Jedes blockgebende Item gibt bei jeder Aktivierung **+1 Block** zusätzlich |
 
 ### Burn
 
-- Burn-Stacks addieren sich; alle **2 Ticks** verursacht **jeder Stack 2 Schaden**.
-- Block nimmt zuerst Burn-Schaden auf; nur der Rest reduziert HP.
-- Nach **jedem** Burn-Schadenstick nimmt die Gesamtzahl der Burn-Stacks um **1** ab (nicht um 1 pro Stack).
-- Neue Stacks wirken beim Schadenstick ihrer Anwendung sofort. Bei 0 Stacks endet Burn.
+- Burn-Stacks addieren sich bei jeder Item-Aktivierung.
+- Alle **2 Ticks** verursacht jeder Burn-Stack **1 Schaden**.
+- Block absorbiert Burn-Schaden zuerst. Der verbleibende Schaden reduziert HP.
+- Die Gesamtzahl der Burn-Stacks wird nach jedem Tick um 1 reduziert, unabhängig davon, ob Burn-Schaden verursacht wurde.
+- Die verbleibenden Burn-Stacks werden auf die aktuellen HP des Fighters begrenzt.
+- Neue Stacks wirken beim Schadenstick ihrer Anwendung sofort.
+- Bei 0 Stacks endet Burn.
 
 | Item | Preis | Cooldown | Effekt |
 | --- | ---: | ---: | --- |
-| Fire Dagger | 3 | 3 | +1 Burn |
-| Fire Bow | 5 | 4 | +2 Burn |
-| Fire Staff | 7 | 6 | +3 Burn |
+| Fire Dagger | 3 | 3 | +3 Burn |
+| Fire Bow | 5 | 4 | +5 Burn |
+| Fire Chopsticks | 7 | 6 | +8 Burn |
 
-Das stellt sicher, dass Burn durch Fire-Items schneller aufgebaut werden kann und pro Stack mehr Schaden verursacht als Poison, aber durch Block und Verfall begrenzt wird. Setzugehörigkeit und aktive Boni erscheinen auf Itemkarten, im Shop und im Kampf.
+Burn kann durch höhere Stack-Zuwächse schneller aufgebaut werden als Poison und verursacht doppelt so häufig Schaden.
+
+Dadurch kann Burn mehr Schaden pro Zeiteinheit verursachen als Poison. Als Ausgleich wird Burn durch Block absorbiert und seine Stacks verfallen mit jedem Tick.
 
 **Gemeinsame Kampf-Reihenfolge:**
 
-1. Cooldowns erhöhen und aktivierte Items bestimmen.
-2. Itemeffekte für **beide** Kämpfer ausführen.
-3. Auslösende Items abarbeiten: **Spieler zuerst, dann Gegner**; dabei normalen Schaden, Block, Heal und neue Status-Stacks anwenden.
-4. Neue Poison- und Burn-Stacks hinzufügen.
-5. Poison-Schaden alle 4 Ticks und Burn-Schaden alle 2 Ticks berechnen.
-6. Burn um 1 Stack reduzieren.
-7. Prüfen, ob jemand besiegt wurde.
+1. Cooldowns aller Items um einen Tick erhöhen.
+2. Ermitteln, welche Items aktiviert werden.
+3. Itemeffekte ausführen. Der Spieler ist zuerst an der Reihe, anschließend der Gegner.
+4. Pro Fighter Burn-Schaden alle 2 Ticks berechnen.
+5. Für denselben Fighter Poison-Schaden alle 4 Ticks berechnen.
+6. Burn-Stacks des Fighters um 1 reduzieren und auf seine verbleibenden HP begrenzen. Die Schritte 4 bis 6 für den nächsten Fighter wiederholen.
+7. Prüfen, ob ein Fighter besiegt wurde.
 8. Kampfereignisse und Frame speichern.
 
 Die bestehenden Regeln bleiben erhalten: Maximal **60 Ticks**; beide gleichzeitig auf 0 HP = Niederlage des Spielers; bei Timeout entscheidet der prozentuale HP-Anteil, Gleichstand = Niederlage. Dieselben Eingaben müssen immer denselben Kampf ergeben.
