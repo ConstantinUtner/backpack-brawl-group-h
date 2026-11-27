@@ -96,14 +96,13 @@ export function simulateBattle(player: Fighter, opponent: Fighter): BattleResult
     //Bugfix: Required separatation of item resolve and damage over time because of the comment behaviour above
     for (const side of ["player", "opponent"] as const) {
       /** REQUIREMENT 4: Adding damage and decay over time */
-      if (tick % 2 === 0) {
+      if (tick % 3 === 0) {
         //Tryout tweaking
         //Bugfix: state.player only is the FighterState, nothing that is needed for an emit
         burnDamage(state[side], side, emit);  
       }
       
       if (tick % 4 === 0) {
-        
         poisonDamage(state[side], side, emit);
       }
         //TODO: Eventually tweak the system a little bit for better experience
