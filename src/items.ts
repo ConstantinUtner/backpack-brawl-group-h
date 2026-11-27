@@ -62,7 +62,7 @@ export const FIRE_CATALOG: ItemDef[] = [
     icon: "🗡️🔥",
     price: 3,
     cooldown: 3,
-    effects: { burn: 3 },
+    effects: { burn: 1 },
     set: "fire",
   },
   {
@@ -70,8 +70,8 @@ export const FIRE_CATALOG: ItemDef[] = [
     name: "Fire Bow",
     icon: "🏹🔥",
     price: 5,
-    cooldown: 4,
-    effects: { burn: 5 },
+    cooldown:5,
+    effects: { burn: 2 },
     set: "fire",
   },
   {
@@ -79,8 +79,8 @@ export const FIRE_CATALOG: ItemDef[] = [
     name: "Fire Chopsticks",
     icon: "🥢",
     price: 7,
-    cooldown: 6,
-    effects: { burn: 8 },
+    cooldown: 7,
+    effects: { burn: 4 },
     set: "fire",
   },
 ];
