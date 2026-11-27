@@ -103,7 +103,7 @@ describe("battle status effects", () => {
     );
   });
  
-  it("stacks burn, damages every 4 ticks, and decays every tick", () => {
+  it("stacks burn, damages every 2 ticks, and decays every tick", () => {
     const player = fighterWithEffect("fire-dagger", { burn: 3 });
     const opponent = buildFighter([], 100);
  
@@ -115,23 +115,23 @@ describe("battle status effects", () => {
     });
  
     expect(frames[2].opponent).toMatchObject({
-      hp: 100,
+      hp: 95,
       burn: 4,
     });
  
     expect(frames[3].opponent).toMatchObject({
-      hp: 100,
+      hp: 95,
       burn: 6,
     });
  
     expect(frames[4].opponent).toMatchObject({
-      hp: 91,
+      hp: 86,
       burn: 8,
     });
 
-    expect(frames[7].opponent.hp).toBe(91);
+    expect(frames[7].opponent.hp).toBe(73);
     expect(frames[8].opponent).toMatchObject({
-      hp: 74,
+      hp: 56,
       burn: 16,
     });
   });
@@ -143,7 +143,7 @@ describe("battle status effects", () => {
     const { frames } = simulateBattle(player, opponent);
  
     expect(frames[4].opponent).toMatchObject({
-      hp: 99,
+      hp: 94,
       block: 0,
       burn: 8,
     });
@@ -153,8 +153,8 @@ describe("battle status effects", () => {
         kind: "burn",
         source: "player",
         target: "opponent",
-        amount: 1,
-        message: "Fighter takes 1 burn damage (8 fire damage blocked)",
+        amount: 5,
+        message: "Fighter takes 5 burn damage (4 fire damage blocked)",
       }),
     );
   });
@@ -166,19 +166,19 @@ describe("battle status effects", () => {
     const { frames } = simulateBattle(player, opponent);
  
     expect(frames[6].opponent).toMatchObject({
-      hp: 100,
+      hp: 97,
       burn: 2,
     });
  
     expect(frames[7].opponent.burn).toBe(1);
 
     expect(frames[8].opponent).toMatchObject({
-      hp: 99,
+      hp: 96,
       burn: 0,
     });
  
     expect(frames[10].opponent).toMatchObject({
-      hp: 99,
+      hp: 96,
       burn: 0,
     });
   });
